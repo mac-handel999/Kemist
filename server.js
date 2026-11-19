@@ -49,6 +49,7 @@ app.use('/api/meta', require('./src/routes/meta'));
 app.use('/api/drugs', require('./src/routes/drugs'));
 app.use('/api/facilities', require('./src/routes/facilities'));
 app.use('/api/reports', require('./src/routes/reports'));
+app.use('/api/clinical', require('./src/routes/clinical'));
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Endpoint not found.' }));
 
 app.use(express.static(path.join(__dirname, 'public'), {

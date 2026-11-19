@@ -1,73 +1,69 @@
-#!/usr/bin/env node
 'use strict';
 /**
- * Prefill facility cache for major Nigerian cities.
- * Run: npm run prefill:facilities -- --city lagos --city abuja
- * Or: node scripts/prefill-facilities.js --city lagos --city abuja
+ * Fill the facilities table for whole cities from OpenStreetMap.
+ *
+ *   node scripts/prefill-facilities.js --list
+ *   node scripts/prefill-facilities.js --city lagos
+ *   node scripts/prefill-facilities.js --all              # takes a while: one request per block, 20 s apart
+ *   node scripts/prefill-facilities.js --lat 7.40 --lng 3.90 --radius 0.15 --name "My area"
+ *   add --dry to only print the plan
+ *
+ * Safe to stop and restart: blocks that were already fetched in the last 30 days are skipped.
  */
 require('dotenv').config();
-const facilities = require('../src/lib/facilities');
+const store = require('../src/db');
+const { CITIES, planBlocks, fetchBlock, sleep } = require('../src/lib/prefill');
 
-const CITIES = {
-  lagos: { lat: 6.5244, lng: 3.3792 },
-  abuja: { lat: 9.0765, lng: 7.3986 },
-  'port harcourt': { lat: 4.8156, lng: 7.0498 },
-  ibadan: { lat: 7.3775, lng: 3.947 },
-  kano: { lat: 12.0022, lng: 8.592 },
-  enugu: { lat: 6.4584, lng: 7.5464 },
-  'benin city': { lat: 6.335, lng: 5.6037 },
-  kaduna: { lat: 10.5105, lng: 7.4165 },
-  abeokuta: { lat: 7.1608, lng: 3.3483 },
-  jos: { lat: 9.9285, lng: 8.8923 },
-  onitsha: { lat: 6.1454, lng: 6.7924 },
-  owerri: { lat: 5.4863, lng: 7.0306 },
-  'maitama': { lat: 9.0729, lng: 7.4671 },
-  'ikeja': { lat: 6.6018, lng: 3.3515 },
-  'surulere': { lat: 6.4989, lng: 3.3628 },
-  'lekki': { lat: 6.4384, lng: 3.5562 },
-  'victoria island': { lat: 6.4281, lng: 3.4219 },
-  'gwarinpa': { lat: 9.0783, lng: 7.3765 },
-  'wuse': { lat: 9.0676, lng: 7.4856 },
-  'asokoro': { lat: 9.0421, lng: 7.5344 },
-};
+const args = process.argv.slice(2);
+const flag = (n) => args.includes(`--${n}`);
+const opt = (n) => { const i = args.indexOf(`--${n}`); return i >= 0 ? args[i + 1] : null; };
+const TTL = 30 * 24 * 3600 * 1000;
+const PAUSE_MS = Number(opt('pause') || 20000);
 
 async function main() {
-  const args = process.argv.slice(2);
-  let cities = [];
+  if (flag('list')) { for (const [k, c] of Object.entries(CITIES)) console.log(`${k.padEnd(14)} ${c.name} (${planBlocks(c).length} blocks)`); return; }
 
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--city') {
-      const city = args[i + 1]?.toLowerCase();
-      if (city && CITIES[city]) cities.push(city);
-      i++;
+  let targets = [];
+  if (flag('all')) targets = Object.values(CITIES);
+  else if (opt('city')) {
+    const c = CITIES[opt('city').toLowerCase()];
+    if (!c) { console.error(`Unknown city. Run with --list. Known: ${Object.keys(CITIES).join(', ')}`); process.exitCode = 1; return; }
+    targets = [c];
+  } else if (opt('lat') && opt('lng')) {
+    targets = [{ name: opt('name') || 'Custom area', lat: Number(opt('lat')), lng: Number(opt('lng')), r: Number(opt('radius') || 0.15) }];
+  } else { console.error('Use --city <name>, --all, --lat/--lng, or --list.'); process.exitCode = 1; return; }
+
+  const dry = flag('dry');
+  if (!dry && store.mode !== 'supabase') {
+    console.error('Supabase is not configured, so nothing would be saved. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.');
+    process.exitCode = 1; return;
+  }
+
+  let total = 0, skipped = 0, failed = 0;
+  for (const t of targets) {
+    const blocks = planBlocks(t);
+    console.log(`\n${t.name}: ${blocks.length} block(s)`);
+    let n = 0;
+    for (const b of blocks) {
+      n++;
+      const done = await Promise.all(b.cells.map((c) => store.cellFetchedRecently(c, TTL)));
+      if (done.every(Boolean)) { skipped++; console.log(`  ${n}/${blocks.length} already fetched, skipping`); continue; }
+      if (dry) { console.log(`  ${n}/${blocks.length} would fetch ${b.cells.length} cells, bbox ${JSON.stringify(b.bbox)}`); continue; }
+      try {
+        const rows = await fetchBlock(b);
+        if (rows.length) await store.upsertFacilities(rows);
+        for (const c of b.cells) await store.markCellFetched(c);
+        total += rows.length;
+        console.log(`  ${n}/${blocks.length} saved ${rows.length} places`);
+      } catch (e) {
+        failed++;
+        console.error(`  ${n}/${blocks.length} failed: ${e.message} (rerun later to retry)`);
+      }
+      await sleep(PAUSE_MS);
     }
   }
-
-  if (!cities.length) {
-    console.log('Usage: node scripts/prefill-facilities.js --city <city1> --city <city2> ...');
-    console.log('Available cities:', Object.keys(CITIES).join(', '));
-    process.exit(1);
-  }
-
-  console.log('Prefilling facilities for:', cities.join(', '));
-  console.log('This will fetch from OpenStreetMap (Overpass API) and cache in your database.');
-  console.log('May take 30-60 seconds per city...\n');
-
-  for (const city of cities) {
-    const { lat, lng } = CITIES[city];
-    console.log(`\n[${city}] Fetching facilities (lat: ${lat}, lng: ${lng})...`);
-    try {
-      const result = await facilities.nearby({ lat, lng, radius: 5000, limit: 100 });
-      console.log(`[${city}] Found ${result.count} facilities. Note: ${result.note || 'OK'}`);
-    } catch (e) {
-      console.error(`[${city}] Error:`, e.message);
-    }
-  }
-
-  console.log('\nDone! Run your app and check the Nearby page.');
+  console.log(`\nDone. Places saved: ${total}. Blocks skipped: ${skipped}. Blocks failed: ${failed}.`);
+  if (failed) process.exitCode = 1;
 }
 
-main().catch((e) => {
-  console.error('Fatal:', e);
-  process.exit(1);
-});
+main().catch((e) => { console.error('Prefill failed:', e.message); process.exitCode = 1; });

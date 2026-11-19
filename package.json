@@ -13,6 +13,7 @@
     "test": "node --test tests/*.js",
     "sync:drugs": "node scripts/sync-drugs.js",
     "sync:file": "node scripts/sync-drugs.js --file",
+    "sync:clinical": "node scripts/import-clinical.js",
     "prefill:facilities": "node scripts/prefill-facilities.js"
   },
   "dependencies": {

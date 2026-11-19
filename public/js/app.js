@@ -279,6 +279,7 @@
         h('div', { class: 'actions' },
           h('a', { class: 'btn primary', href: '#/nearby' }, icon('locate'), 'Find a pharmacy near me'),
           h('a', { class: 'btn', href: `#/report?${new URLSearchParams({ product: d.product_name, nrn: d.nrn })}` }, 'Report a problem with this product')));
+      document.dispatchEvent(new CustomEvent('kemist:drug-rendered', { detail: { drug: d, page } }));
       view.focus({ preventScroll: true });
     } catch (e) {
       page.replaceChildren(h('a', { class: 'back', href: '#/' }, icon('back'), 'Back to search'), h('div', { class: 'msg err', role: 'alert' }, e.message));
