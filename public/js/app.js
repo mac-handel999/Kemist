@@ -381,7 +381,7 @@
 
     view.append(h('div', { class: 'page about' },
       h('div', { class: 'stack' },
-        h('a', { class: 'back', href: '#/' }, icon('back'), 'Back to home')),
+        h('a', { class: 'back', href: '/' }, icon('back'), 'Back to home')),
       h('h1', null, 'About Kemist'),
       h('p', { class: 'lead' }, 'Kemist helps you look up a medicine\'s NAFDAC registration and find pharmacies, clinics and hospitals near you.'),
       h('div', { class: 'callout' },

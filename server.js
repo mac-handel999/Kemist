@@ -57,7 +57,12 @@ app.use(express.static(path.join(__dirname, 'public'), {
     if (/sw\.js$|manifest\.json$/.test(file)) res.setHeader('Cache-Control', 'no-cache');
   },
 }));
-app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+
+// Landing page at root
+app.get('/', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
+
+// App at /app/*
+app.get('/app*', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
