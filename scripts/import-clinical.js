@@ -33,7 +33,10 @@ async function main() {
   console.log(`Ingredients to look up: ${keys.length}`);
 
   let fixture = null;
-  if (opt('file')) fixture = JSON.parse(fs.readFileSync(opt('file'), 'utf8'));
+  if (opt('file')) {
+    const data = JSON.parse(fs.readFileSync(opt('file'), 'utf8'));
+    fixture = data.results || data;  // openFDA returns { results: [...] } or array
+  }
 
   let saved = 0, missing = 0, failed = 0;
   for (const key of keys) {
