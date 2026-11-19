@@ -113,7 +113,7 @@
             h('path', { d: 'M216 262l32 32 56-68', fill: 'none', stroke: '#00844F', 'stroke-width': '28', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })))),
         h('h1', null, 'Kemist'),
         h('p', { class: 'lead' }, 'Look up a medicine\'s registration record and find health services near you. Kemist works with any regulator, not only NAFDAC.'),
-        h('div', { class: 'home-actions' }, launch))),
+        h('div', { class: 'home-actions' }, launch)),
       h('div', { class: 'home-grid' },
         h('article', { class: 'home-card' },
           h('h2', null, icon('check'), 'Check a record'),
@@ -130,7 +130,7 @@
       h('div', { class: 'home-note' },
         h('strong', null, 'What a check can and cannot tell you'),
         h('p', null, 'A match means a regulator has a registration record with that number. It does not prove the pack in your hand is genuine, because fake packs can copy real numbers. Always check the pack, buy from licensed sellers, and ask a pharmacist when unsure. Kemist is not medical advice.')),
-      h('p', { class: 'hint' }, 'More detail, data sources and licensing are on the About page.')));
+      h('p', { class: 'hint' }, 'More detail, data sources and licensing are on the About page.'));
   }
 
   // ---------- Check view ----------
