@@ -84,7 +84,8 @@ async function fetchLabelsFor(key, { per = 2, apiKey } = {}) {
   for (const name of searchNames(key)) {
     const term = safeTerm(name);
     if (!term) continue;
-    const results = await requestLabels(`openfda.generic_name.exact:"${term}"`, { apiKey });
+    // Use case-insensitive match (not .exact:) since openFDA stores generic_name in uppercase
+    const results = await requestLabels(`openfda.generic_name:${term}`, { apiKey });
     const rows = [];
     const seen = new Set();
     for (const raw of results) {
