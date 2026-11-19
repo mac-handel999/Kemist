@@ -127,9 +127,11 @@
           h('h2', null, icon('alert'), 'Report a problem'),
           h('p', null, 'Tell us about a pack that looks wrong, a mismatch, or a bad reaction. Reports are reviewed by people.'),
           h('a', { class: 'btn', href: '#/report' }, icon('phone'), 'Make a report')),
+        ),
       h('div', { class: 'home-note' },
         h('strong', null, 'What a check can and cannot tell you'),
-        h('p', null, 'A match means a regulator has a registration record with that number. It does not prove the pack in your hand is genuine, because fake packs can copy real numbers. Always check the pack, buy from licensed sellers, and ask a pharmacist when unsure. Kemist is not medical advice.')),
+        h('p', null, 'A match means a regulator has a registration record with that number. It does not prove the pack in your hand is genuine, because fake packs can copy real numbers. Always check the pack, buy from licensed sellers, and ask a pharmacist when unsure. Kemist is not medical advice.'),
+      ),
       h('p', { class: 'hint' }, 'More detail, data sources and licensing are on the About page.')));
   }
 
