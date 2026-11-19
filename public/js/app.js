@@ -396,7 +396,7 @@
     ];
     const LABEL = { pharmacy: 'Pharmacy', hospital: 'Hospital', clinic: 'Clinic', doctors: 'Doctor', laboratory: 'Laboratory' };
     const GLYPH = { pharmacy: '+', hospital: 'H', clinic: 'C', doctors: 'C', laboratory: 'L' };
-    const CITIES = [['Lagos', 6.5244, 3.3792], ['Abuja', 9.0765, 7.3986], ['Port Harcourt', 4.8156, 7.0498], ['Ibadan', 7.3775, 3.947], ['Kano', 12.0022, 8.592], ['Enugu', 6.4584, 7.5464], ['Benin City', 6.335, 5.6037], ['Kaduna', 10.5105, 7.4165]];
+    const CITIES = [['Lagos', 6.5244, 3.3792], ['Abuja', 9.0765, 7.3986], ['Port Harcourt', 4.8156, 7.0498], ['Ibadan', 7.3775, 3.947], ['Kano', 12.0022, 8.592], ['Enugu', 6.4584, 7.5464], ['Benin City', 6.335, 5.6037], ['Kaduna', 10.5105, 7.4165], ['Owerri', 5.484, 7.0351], ['Aba', 5.1066, 7.3667], ['Onitsha', 6.1498, 6.7857], ['Calabar', 4.9757, 8.3417], ['Uyo', 5.0377, 7.9128], ['Ilorin', 8.4966, 4.5421], ['Jos', 9.8965, 8.8583], ['Warri', 5.5167, 5.75], ['Abeokuta', 7.1475, 3.3619], ['Maiduguri', 11.8333, 13.15]];
 
     const s = { map: null, layer: null, me: null, filter: 'all', center: null, items: [], markers: new Map(), ready: false, seq: 0 };
     const msg = $('#mapMsg'), list = $('#facList'), areaBtn = $('#areaBtn');
