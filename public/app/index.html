@@ -22,7 +22,13 @@
         <svg width="32" height="32" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="112" fill="#00844F"/><path fill="#fff" d="M192 96h128v96h96v128h-96v96H192v-96H96V192h96z"/><path d="M216 262l32 32 56-68" fill="none" stroke="#00844F" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Kemist
       </a>
-      <span id="netPill" class="net-pill" hidden>Offline</span>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span id="netPill" class="net-pill" hidden>Offline</span>
+        <button id="themeToggle" class="theme-toggle" type="button" aria-label="Switch to dark mode" aria-pressed="false">
+          <svg class="icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          <svg class="icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
     </header>
 
     <nav class="nav" aria-label="Main">
@@ -47,32 +53,6 @@
     <div class="content">
       <div id="demoBanner" class="demo-banner" hidden></div>
       <main id="view" tabindex="-1"></main>
-
-      <footer class="foot" id="foot" hidden>
-        <div class="foot-inner">
-          <div class="foot-brand">
-            <svg width="28" height="28" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="112" fill="#00844F"/><path fill="#fff" d="M192 96h128v96h96v128h-96v96H192v-96H96V192h96z"/><path d="M216 262l32 32 56-68" fill="none" stroke="#00844F" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span>Kemist</span>
-          </div>
-          <p class="foot-copy">Built by <strong>Fabian Codes HQ</strong>. Kemist is free software released under the <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener noreferrer">Apache License 2.0</a>.</p>
-          <p class="foot-copyright">&copy; 2026 Fabian Codes HQ. All rights reserved.</p>
-          <p class="foot-src">Kemist is not affiliated with, endorsed by, or sponsored by any of the data providers below. It only displays registration records that those regulators publish; it cannot tell you whether a physical pack is genuine.</p>
-          <ul class="foot-credits" aria-label="Third-party platforms and APIs used">
-            <li><strong>NAFDAC</strong> — National Agency for Food and Drug Administration and Control. Greenbook registration data, accessed via the <a href="https://apify.com/" target="_blank" rel="noopener noreferrer">Apify</a> platform.</li>
-            <li><strong>Apify</strong> — actor orchestration and web data extraction.</li>
-            <li><strong>OpenStreetMap</strong> — health-facility places and base map tiles, <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener\u002Fnoreferrer">&copy; contributors</a>.</li>
-            <li><strong>Geoapify</strong> — map tile delivery (optional, configured via <code>GEOAPIFY_API_KEY</code>).</li>
-            <li><strong>Leaflet</strong> — interactive map library.</li>
-            <li><strong>Google Fonts</strong> — <em>Familjen Grotesk</em> and <em>Figtree</em> typefaces.</li>
-            <li><strong>Supabase</strong> — database and backend storage.</li>
-          </ul>
-          <p class="foot-more">Additional drug-regulator data sources are planned for the future. Kemist is built to work with any regulator, not only NAFDAC.</p>
-          <details class="foot-license">
-            <summary>Apache License 2.0</summary>
-            <p>Kemist is licensed under the <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener noreferrer">Apache License, Version 2.0</a> (January 2004). A copy of the full license text is available at <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener noreferrer">http://www.apache.org/licenses/</a>.</p>
-          </details>
-        </div>
-      </footer>
 
       <section id="nearby" class="nearby" hidden aria-labelledby="nearbyTitle">
         <div class="nearby-head">

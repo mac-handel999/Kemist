@@ -12,7 +12,8 @@
     "dev": "node --watch server.js",
     "test": "node --test tests/*.js",
     "sync:drugs": "node scripts/sync-drugs.js",
-    "sync:file": "node scripts/sync-drugs.js --file"
+    "sync:file": "node scripts/sync-drugs.js --file",
+    "prefill:facilities": "node scripts/prefill-facilities.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

@@ -84,8 +84,6 @@
 
     const isHome = name === 'home';
     const isNearby = name === 'nearby';
-    const foot = $('#foot');
-    if (foot) foot.hidden = isHome;
     nearbyEl.hidden = !isNearby;
     view.hidden = isNearby;
     if (isNearby) { Nearby.show(); document.title = 'Nearby · Kemist'; return; }
@@ -102,37 +100,8 @@
 
   // ---------- Home / landing ----------
   function HomeView() {
-    document.title = 'Kemist';
-    const launch = h('button', { class: 'btn primary', type: 'button', onclick: () => { location.hash = '#/check'; } }, icon('search'), h('span', null, 'Launch app'));
-    view.append(h('div', { class: 'page home' },
-      h('div', { class: 'home-hero' },
-        h('div', { class: 'home-crest', 'aria-hidden': 'true' },
-          h('svg', { width: '64', height: '64', viewBox: '0 0 512 512' },
-            h('rect', { width: '512', height: '512', rx: '112', fill: '#00844F' }),
-            h('path', { d: 'M192 96h128v96h96v128h-96v96H192v-96H96V192h96z', fill: '#fff' }),
-            h('path', { d: 'M216 262l32 32 56-68', fill: 'none', stroke: '#00844F', 'stroke-width': '28', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })))),
-        h('h1', null, 'Kemist'),
-        h('p', { class: 'lead' }, 'Look up a medicine\'s registration record and find health services near you. Kemist works with any regulator, not only NAFDAC.'),
-        h('div', { class: 'home-actions' }, launch),
-      h('div', { class: 'home-grid' },
-        h('article', { class: 'home-card' },
-          h('h2', null, icon('check'), 'Check a record'),
-          h('p', null, 'Type the registration number printed on the pack, or the medicine name. Kemist shows the regulator\'s record for that number.'),
-          h('a', { class: 'btn', href: '#/check' }, icon('search'), 'Open checker')),
-        h('article', { class: 'home-card' },
-          h('h2', null, icon('locate'), 'Find a pharmacy'),
-          h('p', null, 'See licensed pharmacies, clinics, hospitals and labs near you, with directions and opening hours.'),
-          h('a', { class: 'btn', href: '#/nearby' }, icon('route'), 'Find nearby')),
-        h('article', { class: 'home-card' },
-          h('h2', null, icon('alert'), 'Report a problem'),
-          h('p', null, 'Tell us about a pack that looks wrong, a mismatch, or a bad reaction. Reports are reviewed by people.'),
-          h('a', { class: 'btn', href: '#/report' }, icon('phone'), 'Make a report')),
-        ),
-      h('div', { class: 'home-note' },
-        h('strong', null, 'What a check can and cannot tell you'),
-        h('p', null, 'A match means a regulator has a registration record with that number. It does not prove the pack in your hand is genuine, because fake packs can copy real numbers. Always check the pack, buy from licensed sellers, and ask a pharmacist when unsure. Kemist is not medical advice.'),
-      ),
-      h('p', { class: 'hint' }, 'More detail, data sources and licensing are on the About page.')));
+    // Redirect to Check view - landing page handles marketing content
+    location.hash = '#/check';
   }
 
   // ---------- Check view ----------
@@ -601,6 +570,34 @@
   const netPill = $('#netPill');
   const syncNet = () => { netPill.hidden = navigator.onLine; };
   window.addEventListener('online', syncNet); window.addEventListener('offline', syncNet); syncNet();
+
+  // Theme toggle
+  const themeToggle = $('#themeToggle');
+  const html = document.documentElement;
+  const STORAGE_KEY = 'kemist-theme';
+  const getSystemTheme = () => window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  const setTheme = (theme) => {
+    html.setAttribute('data-theme', theme);
+    localStorage.setItem(STORAGE_KEY, theme);
+    if (themeToggle) {
+      themeToggle.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+      themeToggle.setAttribute('aria-pressed', theme === 'dark');
+    }
+  };
+  const initTheme = () => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    setTheme(saved || getSystemTheme());
+  };
+  if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+      const current = html.getAttribute('data-theme');
+      setTheme(current === 'dark' ? 'light' : 'dark');
+    });
+  }
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    if (!localStorage.getItem(STORAGE_KEY)) setTheme(e.matches ? 'dark' : 'light');
+  });
+  initTheme();
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));

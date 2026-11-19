@@ -31,7 +31,7 @@ app.use(helmet({
       'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
       'font-src': ["'self'", 'https://fonts.gstatic.com'],
       'img-src': ["'self'", 'data:', 'blob:', 'https://cdnjs.cloudflare.com', ...TILE_HOSTS],
-      'connect-src': ["'self'"],
+      'connect-src': ["'self'", 'https://overpass-api.de', 'https://overpass.kumi.systems', 'https://nominatim.openstreetmap.org'],
       'worker-src': ["'self'"],
       'upgrade-insecure-requests': null,
     },
