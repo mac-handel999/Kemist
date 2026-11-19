@@ -1,0 +1,75 @@
+name: Sync NAFDAC data & Clinical info & Facilities
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_items:
+        description: "NAFDAC records to fetch (leave empty to use APIFY_INPUT secret)"
+        required: false
+      clinical_top:
+        description: "Top N ingredients for clinical sync (default 50)"
+        required: false
+      clinical_per:
+        description: "Labels per ingredient for clinical sync (default 3)"
+        required: false
+      prefill_all:
+        description: "Prefill facilities for all cities (true/false, default false)"
+        required: false
+  schedule:
+    - cron: "0 2 * * 1"   # every Monday at 02:00 UTC (NAFDAC weekly)
+    - cron: "0 3 * * 0"   # every Sunday at 03:00 UTC (clinical monthly-ish)
+    - cron: "0 4 1 * *"   # 1st of month at 04:00 UTC (facilities quarterly)
+
+jobs:
+  sync-nafdac:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Sync NAFDAC drugs
+        run: node scripts/sync-drugs.js
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          APIFY_ACTOR_ID: ${{ secrets.APIFY_ACTOR_ID }}
+          APIFY_INPUT: ${{ inputs.max_items && format('{{"maxItems":{0}}}', inputs.max_items) || secrets.APIFY_INPUT }}
+
+  sync-clinical:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Sync clinical info (US labels from openFDA)
+        run: node scripts/import-clinical.js --top ${{ inputs.clinical_top || 100 }} --per ${{ inputs.clinical_per || 3 }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENFDA_API_KEY: ${{ secrets.OPENFDA_API_KEY }}
+
+  prefill-facilities:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Prefill facilities for major cities
+        run: node scripts/prefill-facilities.js ${{ inputs.prefill_all && '--all' || '' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEOAPIFY_API_KEY: ${{ secrets.GEOAPIFY_API_KEY }}
