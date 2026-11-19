@@ -27,8 +27,8 @@ app.use(helmet({
   contentSecurityPolicy: {
     useDefaults: true,
     directives: {
-      'script-src': ["'self'", 'https://cdnjs.cloudflare.com'],
-      'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
+      'script-src': ["'self'", 'https://cdnjs.cloudflare.com', 'https://unpkg.com'],
+      'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com', 'https://unpkg.com'],
       'font-src': ["'self'", 'https://fonts.gstatic.com'],
       'img-src': ["'self'", 'data:', 'blob:', 'https://cdnjs.cloudflare.com', ...TILE_HOSTS],
       'connect-src': ["'self'", 'https://overpass-api.de', 'https://overpass.kumi.systems', 'https://nominatim.openstreetmap.org'],
