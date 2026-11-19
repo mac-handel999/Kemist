@@ -9,7 +9,7 @@
 const store = require('../db');
 
 const CELL_DEG = 0.05;                 // ~5.5 km
-const FETCH_RADIUS_M = 9000;           // pulled around the cell centre
+const FETCH_RADIUS_M = 15000;          // increased for Nigeria's sparse OSM coverage
 const MAX_QUERY_RADIUS_M = 5000;       // largest radius an API caller may ask for (cell offset + this < FETCH_RADIUS_M)
 const CELL_TTL_MS = 30 * 24 * 3600 * 1000;
 const ENDPOINTS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
@@ -96,8 +96,10 @@ function mapGeoapifyCategory(cats) {
   const catStr = String(cats).toLowerCase();
   if (catStr.includes('pharmacy')) return 'pharmacy';
   if (catStr.includes('hospital')) return 'hospital';
-  if (catStr.includes('clinic') || catStr.includes('doctor')) return 'clinic';
+  if (catStr.includes('clinic_or_praxis') || catStr.includes('clinic') || catStr.includes('doctor') || catStr.includes('praxis')) return 'clinic';
   if (catStr.includes('laboratory') || catStr.includes('lab')) return 'laboratory';
+  // Fallback: if just "healthcare" category matched, default to clinic
+  if (catStr === 'healthcare') return 'clinic';
   return null;
 }
 
@@ -120,10 +122,15 @@ async function overpass(query) {
 
 async function geoapify(lat, lng) {
   if (!GEOAPIFY_KEY) throw new Error('GEOAPIFY_API_KEY not configured');
-  const categories = 'healthcare.pharmacy,healthcare.hospital,healthcare.clinic,healthcare.laboratory';
-  const url = `${GEOAPIFY_URL}?categories=${categories}&filter=circle:${lng},${lat},${FETCH_RADIUS_M}&limit=500&apiKey=${GEOAPIFY_KEY}`;
+  // Use broad Geoapify v2 categories that work well in Nigeria
+  // clinic_or_praxis is the correct v2 category, not "clinic"
+  const categories = 'healthcare,healthcare.pharmacy,healthcare.hospital,healthcare.clinic_or_praxis,healthcare.laboratory';
+  const url = `${GEOAPIFY_URL}?categories=${categories}&filter=circle:${lng},${lat},15000&bias=proximity:${lng},${lat}&limit=500&apiKey=${GEOAPIFY_KEY}`;
   const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
-  if (!res.ok) throw new Error(`Geoapify ${res.status}`);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Geoapify ${res.status}: ${text}`);
+  }
   return await res.json();
 }
 
@@ -139,6 +146,10 @@ async function fetchWithFallback(lat, lng) {
         return parseGeoapify(json.features);
       } catch (e2) {
         console.error('[facilities] Geoapify fallback failed:', e2.message);
+        // Check for 403 - likely API key has HTTP Referer restriction (blocks server-side requests)
+        if (e2.message.includes('403')) {
+          console.error('[facilities] Geoapify 403: Check if GEOAPIFY_API_KEY has HTTP Referer restriction. Server-side requests need unrestricted key or separate key.');
+        }
       }
     }
     throw e;

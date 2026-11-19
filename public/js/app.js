@@ -532,7 +532,7 @@
         say(err.code === 1
           ? 'Location is blocked. Allow location for this site in your browser settings, or choose a city below.'
           : 'Could not find your location. Choose a city below.');
-      }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+      }, { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 });
     }
 
     function emergency() {
