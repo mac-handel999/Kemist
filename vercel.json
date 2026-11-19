@@ -1,20 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm install",
-  "installVersion": "npm",
-  "framework": "nodejs",
-  "outputDirectory": ".",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/server.js" }
-  ],
   "headers": [
     {
       "source": "/sw.js",
-      "headers": { "Cache-Control": "no-cache" }
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
     },
     {
       "source": "/manifest.json",
-      "headers": { "Cache-Control": "no-cache" }
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
     }
   ]
 }
