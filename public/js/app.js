@@ -476,7 +476,7 @@
         h('button', { class: 'fac-top', type: 'button', onclick: () => { if (s.ready) { const m = s.markers.get(f.id); s.map.setView([f.lat, f.lng], Math.max(s.map.getZoom(), 16)); m && m.openPopup(); } highlight(f.id, false); } },
           h('div', { class: `pin ${f.type}` }, h('span', null, GLYPH[f.type])),
           h('div', null, h('h3', null, f.name),
-            h('div', { class: 'meta' }, [LABEL[f.type], f.emergency && 'Emergency', f.opening_hours === '24/7' && 'Open 24 hours'].filter(Boolean).join(' · ')),
+            h('div', { class: 'meta' }, [LABEL[f.type], f.emergency && 'Emergency', f.opening_hours === '24/7' && 'Open 24 hours', f.source && !/OpenStreetMap/i.test(f.source) && 'Google Maps listing, not verified'].filter(Boolean).join(' · ')),
             f.address && h('div', { class: 'meta' }, f.address),
             f.opening_hours && f.opening_hours !== '24/7' && h('div', { class: 'meta' }, `Hours: ${f.opening_hours}`)),
           h('span', { class: 'dist' }, dist(f.distance_m))),

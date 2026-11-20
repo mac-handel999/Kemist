@@ -7,6 +7,7 @@
  *  4. Fallback to Geoapify Places API if OpenStreetMap fails and GEOAPIFY_API_KEY is configured.
  */
 const store = require('../db');
+const { dedupeFacilities } = require('./dedupe');
 
 const CELL_DEG = 0.05;                 // ~5.5 km
 const FETCH_RADIUS_M = 15000;          // increased for Nigeria's sparse OSM coverage
@@ -179,7 +180,8 @@ async function nearby({ lat, lng, radius, types, limit }) {
     console.warn('[facilities] All providers failed:', e.message);
     note = 'Live facility data could not be refreshed right now. Showing saved results.';
   }
-  const facilities = await store.nearbyFacilities({ lat, lng, radius: r, types, limit });
+  const found = await store.nearbyFacilities({ lat, lng, radius: r, types, limit });
+  const facilities = dedupeFacilities(found);
   return { radius_m: r, facilities, note };
 }
 

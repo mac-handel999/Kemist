@@ -22,7 +22,7 @@ router.get('/nearby', limiter, async (req, res, next) => {
       radius_m: result.radius_m,
       data: result.facilities,
       note: result.note,
-      attribution: 'Facility data from OpenStreetMap contributors. Listings can be incomplete or out of date: call before you travel.',
+      attribution: 'Facility data from OpenStreetMap contributors and Google Maps listings. Listings can be incomplete or out of date: call before you travel.',
     });
   } catch (e) { next(e); }
 });

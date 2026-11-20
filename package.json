@@ -14,7 +14,8 @@
     "sync:drugs": "node scripts/sync-drugs.js",
     "sync:file": "node scripts/sync-drugs.js --file",
     "sync:clinical": "node scripts/import-clinical.js",
-    "prefill:facilities": "node scripts/prefill-facilities.js"
+    "prefill:facilities": "node scripts/prefill-facilities.js",
+    "import:serpapi": "node scripts/import-serpapi.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

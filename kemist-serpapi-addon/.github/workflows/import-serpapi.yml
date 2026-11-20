@@ -1,0 +1,40 @@
+name: Import Google Maps facilities (SerpApi)
+
+# Manual only: every run spends SerpApi searches (free plan: 250 per month).
+on:
+  workflow_dispatch:
+    inputs:
+      city:
+        description: "City key (e.g. lagos, ibadan, abuja, owerri). Run 'node scripts/import-serpapi.js --city x --dry' locally to preview."
+        required: true
+        default: "ibadan"
+      queries:
+        description: "Comma-separated searches"
+        required: true
+        default: "pharmacy"
+      max_calls:
+        description: "Maximum SerpApi calls for this run"
+        required: true
+        default: "20"
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Import
+        run: node scripts/import-serpapi.js --city "$CITY" --queries "$QUERIES" --max-calls "$MAX_CALLS"
+        env:
+          CITY: ${{ inputs.city }}
+          QUERIES: ${{ inputs.queries }}
+          MAX_CALLS: ${{ inputs.max_calls }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
+          SERPAPI_MONTHLY_LIMIT: ${{ vars.SERPAPI_MONTHLY_LIMIT || '240' }}
