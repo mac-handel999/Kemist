@@ -398,7 +398,7 @@
     const GLYPH = { pharmacy: '+', hospital: 'H', clinic: 'C', doctors: 'C', laboratory: 'L' };
     const CITIES = [['Lagos', 6.5244, 3.3792], ['Abuja', 9.0765, 7.3986], ['Port Harcourt', 4.8156, 7.0498], ['Ibadan', 7.3775, 3.947], ['Kano', 12.0022, 8.592], ['Enugu', 6.4584, 7.5464], ['Benin City', 6.335, 5.6037], ['Kaduna', 10.5105, 7.4165], ['Owerri', 5.484, 7.0351], ['Aba', 5.1066, 7.3667], ['Onitsha', 6.1498, 6.7857], ['Calabar', 4.9757, 8.3417], ['Uyo', 5.0377, 7.9128], ['Ilorin', 8.4966, 4.5421], ['Jos', 9.8965, 8.8583], ['Warri', 5.5167, 5.75], ['Abeokuta', 7.1475, 3.3619], ['Maiduguri', 11.8333, 13.15]];
 
-    const s = { map: null, layer: null, me: null, filter: 'all', center: null, items: [], markers: new Map(), ready: false, seq: 0 };
+    const s = { map: null, layer: null, me: null, filter: 'all', center: null, items: [], markers: new Map(), ready: false, seq: 0, radius: 5000 };
     const msg = $('#mapMsg'), list = $('#facList'), areaBtn = $('#areaBtn');
 
     const say = (text) => { msg.hidden = !text; msg.textContent = text || ''; };
@@ -410,6 +410,9 @@
       $('#typeChips').replaceChildren(...TYPES.map(([key, label, , color]) =>
         h('button', { class: 'chip', type: 'button', 'aria-pressed': String(s.filter === key), onclick: () => { s.filter = key; buildChips(); if (s.center) load(s.center); } },
           key !== 'all' && h('span', { class: 'dot', style: `background:${color}` }), label)));
+      const RADII = [[1000, '1 km'], [3000, '3 km'], [5000, '5 km']];
+      $('#radiusChips').replaceChildren(...RADII.map(([r, label]) =>
+        h('button', { class: 'chip', type: 'button', 'aria-pressed': String(s.radius === r), onclick: () => { s.radius = r; buildChips(); if (s.center) load(s.center); } }, label)));
       $('#cityChips').replaceChildren(h('span', { class: 'hint', style: 'align-self:center' }, 'Or choose a city:'),
         ...CITIES.map(([name, lat, lng]) => h('button', { class: 'chip', type: 'button', onclick: () => go({ lat, lng }, 13) }, name)));
     }
@@ -496,17 +499,47 @@
       const t = TYPES.find(([k]) => k === s.filter);
       if (!nearbyEl.classList.contains('no-map')) say('Looking for places nearby…');
       try {
-        const q = new URLSearchParams({ lat: center.lat.toFixed(5), lng: center.lng.toFixed(5), radius: '5000' });
+        const q = new URLSearchParams({ lat: center.lat.toFixed(5), lng: center.lng.toFixed(5), radius: String(s.radius) });
         if (t && t[2]) q.set('types', t[2]);
         const r = await api(`/api/facilities/nearby?${q}`);
         if (mine !== s.seq) return;
         s.items = r.data;
         render();
         const mapDown = nearbyEl.classList.contains('no-map');
-        say(r.note || (r.data.length ? (mapDown ? 'The map could not load, but the list below still works.' : '') : 'No listings found within 5 km.'));
+        const radiusKm = (s.radius / 1000).toFixed(s.radius < 1000 ? 1 : 0);
+        say(r.note || (r.data.length ? (mapDown ? 'The map could not load, but the list below still works.' : '') : `No listings found within ${radiusKm} km.`));
       } catch (e) {
         if (mine === s.seq) { say(e.message); }
       }
+    }
+
+    async function searchPlace(query) {
+      if (!query.trim()) return;
+      say(`Searching for "${query}"…`);
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=ng`, { signal: AbortSignal.timeout(10000) });
+        const results = await res.json();
+        if (!results.length) { say('No places found. Try a different name.'); return; }
+        if (results.length === 1) {
+          go({ lat: Number(results[0].lat), lng: Number(results[0].lon) }, 13);
+        } else {
+          const dlg = $('#placeDlg') || createPlaceDialog();
+          dlg.replaceChildren(h('div', { class: 'dlg' },
+            h('h2', null, 'Select a place'),
+            h('ul', { class: 'place-list' }, results.map((p) => h('li', { onclick: () => { dlg.close(); go({ lat: Number(p.lat), lng: Number(p.lon) }, 13); } }, p.display_name))),
+            h('button', { class: 'btn', type: 'button', onclick: () => dlg.close() }, 'Cancel')));
+          dlg.showModal();
+        }
+      } catch (e) {
+        say('Search failed. Check your connection and try again.');
+      }
+    }
+
+    function createPlaceDialog() {
+      const dlg = document.createElement('dialog');
+      dlg.id = 'placeDlg';
+      document.body.appendChild(dlg);
+      return dlg;
     }
 
     async function go(pos, zoom) {
@@ -516,7 +549,7 @@
     }
 
     function locate() {
-      if (!navigator.geolocation) { say('This device cannot share its location. Choose a city below.'); return; }
+      if (!navigator.geolocation) { say('This device cannot share its location. Choose a city below or search for a place.'); return; }
       const btn = $('#locateBtn');
       btn.disabled = true; say('Finding your location…');
       navigator.geolocation.getCurrentPosition(async (p) => {
@@ -530,9 +563,22 @@
         go(pos, 15);
       }, (err) => {
         btn.disabled = false;
-        say(err.code === 1
-          ? 'Location is blocked. Allow location for this site in your browser settings, or choose a city below.'
-          : 'Could not find your location. Choose a city below.');
+        let msgText;
+        if (err.code === 1) {
+          msgText = 'Location permission denied. Enable it in browser settings, or use the search below.';
+        } else if (err.code === 2) {
+          msgText = 'Location unavailable. Make sure device location is on, or use the search below.';
+        } else if (err.code === 3) {
+          msgText = 'Location request timed out. Try again or use the search below.';
+        } else {
+          msgText = 'Could not find your location. Use the search below.';
+        }
+        say(msgText);
+        // Show retry button after error
+        if (!$('#retryLocateBtn')) {
+          const retryBtn = h('button', { id: 'retryLocateBtn', class: 'btn small', type: 'button', onclick: locate }, 'Retry location');
+          msg.parentNode.insertBefore(retryBtn, msg.nextSibling);
+        }
       }, { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 });
     }
 
@@ -557,6 +603,19 @@
         navigator.permissions.query({ name: 'geolocation' }).then((r) => { if (r.state === 'granted' && !s.center) locate(); }).catch(() => {});
       }
       if (!s.center && !msg.textContent) say('Tap "Use my location" or choose a city to see places near you.');
+      
+      // Add place search if not already added
+      if (!$('#placeSearch')) {
+        const searchWrap = h('div', { class: 'place-search' },
+          h('input', { id: 'placeSearch', type: 'search', placeholder: 'Search for a place (e.g. "Victoria Island, Lagos")', 'aria-label': 'Search for a place', autocomplete: 'off' }),
+          h('button', { class: 'btn small', type: 'button', onclick: () => searchPlace($('#placeSearch').value) }, icon('search'), 'Search'));
+        document.querySelector('.chips:last-of-type').insertAdjacentElement('afterend', searchWrap);
+        $('#placeSearch').addEventListener('keydown', (e) => { if (e.key === 'Enter') searchPlace(e.target.value); });
+      }
+      
+      // Remove retry button if it exists
+      const retryBtn = $('#retryLocateBtn');
+      if (retryBtn) retryBtn.remove();
     }
 
     $('#locateBtn').addEventListener('click', locate);

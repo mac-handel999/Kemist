@@ -136,9 +136,17 @@ main { padding: 8px 18px 28px; width: 100%; max-width: 720px; margin: 0 auto; }
 .chip[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 .chip .dot { width: 10px; height: 10px; border-radius: 50%; }
 .hint { font-size: .9rem; color: var(--muted); }
-.nowrap { white-space: nowrap; }
+    .nowrap { white-space: nowrap; }
 
-/* the pack illustration */
+    /* place search */
+    .place-search { display: flex; gap: 8px; margin-top: 4px; }
+    .place-search input { flex: 1; min-height: 40px; padding: 0 12px; border: 2px solid var(--ink); border-radius: var(--radius-sm); background: var(--card); font-size: .95rem; }
+    .place-search input:focus { border-color: var(--green); box-shadow: 0 0 0 4px var(--green-tint); }
+    .place-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; max-height: 300px; overflow-y: auto; }
+    .place-list li { padding: 10px 12px; background: var(--card); border: 1.5px solid var(--line); border-radius: var(--radius-sm); cursor: pointer; font-size: .92rem; }
+    .place-list li:hover { background: var(--green-tint); border-color: var(--green); }
+
+    /* the pack illustration */
 .pack { background: var(--green-tint); border-radius: var(--radius); padding: 18px; display: grid; gap: 12px; }
 .pack-box { background: var(--card); border-radius: 8px; padding: 14px 16px; display: grid; gap: 8px; box-shadow: var(--shadow); }
 .pack-box .bar { height: 8px; border-radius: 4px; background: var(--line); }
