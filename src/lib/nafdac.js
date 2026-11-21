@@ -12,6 +12,8 @@ const KEYS = {
   name:         ['productname', 'name', 'brandname', 'product', 'title'],
   status:       ['registrationstatus', 'status'],
   ingredients:  ['activeingredients', 'activeingredient', 'ingredients', 'ingredient', 'composition'],
+  ingredient_synonym: ['ingredientsynonym', 'ingredient_synonym', 'synonym'],
+  composition:  ['composition', 'compositiondescription', 'composition_details'],
   strength:     ['strength', 'strengths'],
   form:         ['dosageform', 'form', 'productdescription'],
   route:        ['route', 'routeofadministration', 'roa'],
@@ -27,6 +29,7 @@ const KEYS = {
   smpc:         ['smpclink', 'smpcurl', 'smpc'],
   url:          ['detailurl', 'detailpageurl', 'productpageurl', 'productpage', 'producturl', 'url', 'link'],
   id:           ['productid', 'sourcerecordid', 'recordid', 'id'],
+  data_quality_note: ['dataqualitynote', 'data_quality_note', 'qualitynote', 'reviewnote', 'note'],
 };
 
 const squash = (k) => String(k).toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -105,6 +108,8 @@ function normalizeNafdacRecord(raw, { source = 'NAFDAC Greenbook' } = {}) {
     pick('id') || sourceUrl ||
     `h:${sha256([nrn, productName, strength, dosageForm, applicant].join('|')).slice(0, 24)}`;
 
+  const detailUrl = pick('url'); // detail URL from the source
+
   return {
     ok: true,
     row: {
@@ -113,6 +118,8 @@ function normalizeNafdacRecord(raw, { source = 'NAFDAC Greenbook' } = {}) {
       nrn,
       product_name: productName,
       active_ingredients: normalizeIngredients(ingredientsRaw),
+      ingredient_synonym: pick('ingredient_synonym'),
+      composition: pick('composition'),
       strength,
       dosage_form: dosageForm,
       route: pick('route'),
@@ -126,7 +133,9 @@ function normalizeNafdacRecord(raw, { source = 'NAFDAC Greenbook' } = {}) {
       approval_date: toDate(pick('approval')),
       expiry_date: toDate(pick('expiry')),
       status: pick('status') || 'Unknown',
+      data_quality_note: pick('data_quality_note'),
       smpc_url: pick('smpc'),
+      detail_url: detailUrl,
       source_url: sourceUrl,
       fetched_at: new Date().toISOString(),
     },

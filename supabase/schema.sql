@@ -13,6 +13,8 @@ create table if not exists public.drugs (
   nrn                  text not null,                   -- NAFDAC registration number, e.g. A4-7559 (can repeat across records)
   product_name         text not null,
   active_ingredients   text,                            -- "Glucose; Sodium Chloride" (sorted by the importer)
+  ingredient_synonym   text,                            -- alternative ingredient names
+  composition          text,                            -- detailed composition text from NAFDAC
   strength             text,                            -- "100 mg" / "4.3%; 0.9%"
   dosage_form          text,                            -- Tablet, Capsule, Suspension ...
   route                text,                            -- Oral, Intravenous ...
@@ -26,10 +28,12 @@ create table if not exists public.drugs (
   approval_date        date,
   expiry_date          date,
   status               text not null default 'Unknown', -- Active / Inactive etc., exactly as reported by the source
+  data_quality_note    text,                            -- NAFDAC review notes (duplicate NRN, check pack size, etc.)
   smpc_url             text,
+  detail_url           text,                            -- link to NAFDAC product page
+  source_url           text,
   image_url            text,
   source               text not null default 'NAFDAC Greenbook',
-  source_url           text,
   fetched_at           timestamptz not null default now(),
   created_at           timestamptz not null default now(),
   unique (source, source_record_id),

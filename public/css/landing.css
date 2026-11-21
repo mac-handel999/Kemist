@@ -455,6 +455,71 @@ img, svg { display: block; max-width: 100%; }
   color: var(--white);
 }
 
+/* Audience Section */
+.landing-audience {
+  padding: 7rem 1.5rem;
+  max-width: 1280px;
+  margin: 0 auto;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.audience-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.audience-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2.5rem 2rem;
+  transition: all var(--transition);
+  text-align: center;
+}
+
+.audience-card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-xl);
+  border-color: var(--green);
+}
+
+.audience-icon {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--green-light);
+  border-radius: 50%;
+  color: var(--green);
+  margin: 0 auto 1.25rem;
+  transition: all var(--transition);
+}
+
+.audience-card:hover .audience-icon {
+  background: var(--green);
+  color: var(--white);
+  transform: scale(1.05);
+}
+
+.audience-card h3 {
+  font-family: 'Familjen Grotesk', sans-serif;
+  font-size: 1.375rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+  color: var(--text);
+}
+
+.audience-card p {
+  color: var(--text-muted);
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
 /* Demo Section */
 .landing-demo {
   padding: 7rem 1.5rem;
@@ -739,7 +804,7 @@ img, svg { display: block; max-width: 100%; }
 
 @media (max-width: 768px) {
   .landing-nav { padding: 0.75rem 1rem; gap: 1rem; }
-  .landing-brand span { display: none; }
+  .landing-brand span { display: inline; font-size: 1.125rem; }
   .btn-nav { display: none; }
   .landing-hero { padding: 3rem 1rem; }
   .hero-content h1 { font-size: 2.25rem; }

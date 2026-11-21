@@ -397,13 +397,13 @@ const ICON = {
       document.title = `${title} · Kemist`;
       const v = d.verdict;
       const rows = [
-        ['NAFDAC number', d.nrn], ['Active ingredients', d.active_ingredients], ['Strength', d.strength],
+        ['NAFDAC number', d.nrn], ['Active ingredients', d.active_ingredients], ['Ingredient synonyms', d.ingredient_synonym], ['Composition', d.composition], ['Strength', d.strength],
         ['Dosage form', d.dosage_form], ['Route', d.route], ['Sold as', d.marketing_category],
         ['Pack size', d.pack_size], ['Applicant', d.applicant],
         ['Manufacturer', [d.manufacturer, d.manufacturer_country].filter(Boolean).join(', ')],
         ['Approved', fmtDate(d.approval_date)], ['Registration expires', fmtDate(d.expiry_date)],
-        ['Status in source', d.status], ['ATC code', d.atc_code], ['Product category', d.product_category],
-        ['Source', d.source], ['Last updated in Kemist', fmtDate(d.fetched_at)],
+        ['Status in source', d.status], ['Data quality note', d.data_quality_note], ['ATC code', d.atc_code], ['Product category', d.product_category],
+        ['Source', d.source], ['NAFDAC product page', d.detail_url], ['Last updated in Kemist', fmtDate(d.fetched_at)],
       ].filter(([, val]) => val);
       if (d.display_name && d.display_name !== d.product_name) {
         rows.splice(1, 0, ['Name in NAFDAC record', d.product_name]);
@@ -418,7 +418,13 @@ const ICON = {
         h('div', { class: 'callout' },
           h('strong', null, 'This checks the record, not your pack'),
           h('p', null, note)),
-        h('dl', { class: 'kv' }, rows.map(([k, val]) => h('div', null, h('dt', null, k), h('dd', null, val)))),
+        h('dl', { class: 'kv' }, rows.map(([k, val]) => {
+          let dd = val;
+          if (k === 'NAFDAC product page' && val) {
+            dd = h('a', { href: val, target: '_blank', rel: 'noopener noreferrer' }, val, icon('external'));
+          }
+          return h('div', null, h('dt', null, k), h('dd', null, dd));
+        })),
         d.smpc_url && h('a', { class: 'btn', href: d.smpc_url, target: '_blank', rel: 'noopener noreferrer' }, 'Open product leaflet (SmPC)'),
         h('details', { class: 'callout' },
           h('summary', null, 'How to check the pack itself'),

@@ -2,8 +2,8 @@
 const router = require('express').Router();
 const store = require('../db');
 
-// GET /api/clinical/library?search=&ingredient=&category=&limit=50&offset=0
-router.get('/library', async (req, res, next) => {
+// GET /api/clinical-library?search=&ingredient=&category=&limit=50&offset=0
+router.get('/', async (req, res, next) => {
   try {
     const search = String(req.query.search || '').trim();
     const ingredient = req.query.ingredient ? String(req.query.ingredient).trim() : null;
@@ -33,8 +33,8 @@ router.get('/library', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// GET /api/clinical/library/ingredients - list all ingredients with label counts
-router.get('/library/ingredients', async (req, res, next) => {
+// GET /api/clinical-library/ingredients - list all ingredients with label counts
+router.get('/ingredients', async (req, res, next) => {
   try {
     const search = String(req.query.search || '').trim();
     const limit = Math.min(Number(req.query.limit) || 100, 200);
@@ -69,8 +69,8 @@ router.get('/library/ingredients', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// GET /api/clinical/library/categories - list clinical categories (from sections that have content)
-router.get('/library/categories', async (req, res, next) => {
+// GET /api/clinical-library/categories - list clinical categories (from sections that have content)
+router.get('/categories', async (req, res, next) => {
   try {
     const categories = [
       { key: 'indications', label: 'Indications & Uses', description: 'What the medicine is used for' },
@@ -79,23 +79,63 @@ router.get('/library/categories', async (req, res, next) => {
       { key: 'warnings', label: 'Warnings & Precautions', description: 'Important safety warnings' },
       { key: 'adverse_reactions', label: 'Adverse Reactions', description: 'Known side effects' },
       { key: 'interactions', label: 'Drug Interactions', description: 'Interactions with other medicines' },
+      { key: 'use_in_specific_populations', label: 'Use in Specific Populations', description: 'Pregnancy, pediatric, geriatric use' },
+      { key: 'pharmacology', label: 'Clinical Pharmacology', description: 'Mechanism of action, pharmacokinetics' },
     ];
     res.json({ data: categories });
   } catch (e) { next(e); }
 });
 
-// GET /api/clinical/library/:id - get single clinical record with all sections
-router.get('/library/:id', async (req, res, next) => {
+// GET /api/clinical-library/sections/:ingredient - get all sections for a specific ingredient
+router.get('/sections/:ingredient', async (req, res, next) => {
   try {
+    const ingredient = String(req.params.ingredient).trim();
     const { data, error } = await store.client
       .from('clinical_info')
       .select('*')
-      .eq('id', req.params.id)
-      .maybeSingle();
+      .eq('ingredient_key', ingredient)
+      .order('effective_date', { ascending: false });
     if (error) throw new Error(`clinical_info: ${error.message}`);
-    if (!data) return res.status(404).json({ error: 'Clinical record not found' });
-    res.json(data);
+
+    // Group by section
+    const sections = {
+      indications: [],
+      dosage: [],
+      contraindications: [],
+      warnings: [],
+      adverse_reactions: [],
+      interactions: [],
+      use_in_specific_populations: [],
+      pharmacology: [],
+    };
+    for (const row of data || []) {
+      for (const key of Object.keys(sections)) {
+        if (row[key]) sections[key].push(row);
+      }
+    }
+    res.json({ data: sections, ingredient });
   } catch (e) { next(e); }
+});
+
+// Also support the /library prefix for backward compatibility
+router.get('/library', async (req, res, next) => {
+  req.url = '/';
+  router.handle(req, res, next);
+});
+
+router.get('/library/ingredients', async (req, res, next) => {
+  req.url = '/ingredients';
+  router.handle(req, res, next);
+});
+
+router.get('/library/categories', async (req, res, next) => {
+  req.url = '/categories';
+  router.handle(req, res, next);
+});
+
+router.get('/library/sections/:ingredient', async (req, res, next) => {
+  req.url = `/sections/${req.params.ingredient}`;
+  router.handle(req, res, next);
 });
 
 module.exports = router;
