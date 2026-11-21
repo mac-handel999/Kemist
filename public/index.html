@@ -33,114 +33,505 @@
   <main class="landing-main">
     <section class="landing-hero" aria-labelledby="hero-title" data-aos="fade-up" data-aos-duration="800">
       <div class="hero-content">
-        <h1 id="hero-title">Verify medicines. Find care.</h1>
-        <p class="hero-lead">Kemist helps you check a medicine's NAFDAC registration record and find licensed pharmacies, clinics, and hospitals — all in one place.</p>
-        <div class="hero-actions">
-          <a href="/app/" class="btn btn-primary btn-large">Launch Kemist</a>
+        <div class="hero-badge" data-aos="fade-up" data-aos-delay="100">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22c5.5 0 10-4.5 10-10S17.5 2 12 2 2 6.5 2 12s4.5 10 10 10z"/><path d="M12 6v6l4 2"/></svg>
+          <span>Trusted by thousands across Nigeria</span>
+        </div>
+        <h1 id="hero-title" data-aos="fade-up" data-aos-delay="200">Verify medicines. <span class="hero-highlight">Find care.</span></h1>
+        <p class="hero-lead" data-aos="fade-up" data-aos-delay="300">Kemist helps you check a medicine's NAFDAC registration record and find licensed pharmacies, clinics, and hospitals — all in one place.</p>
+        <div class="hero-actions" data-aos="fade-up" data-aos-delay="400">
+          <a href="/app/" class="btn btn-primary btn-large">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
+            <span>Launch Kemist</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
           <a href="/app/#/about" class="btn btn-outline btn-large">Learn more</a>
+        </div>
+        <div class="hero-stats" data-aos="fade-up" data-aos-delay="500">
+          <div class="stat">
+            <span class="stat-value" data-count="20000">20K+</span>
+            <span class="stat-label">Drug records</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value" data-count="5000">5K+</span>
+            <span class="stat-label">Facilities mapped</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value" data-count="500">500+</span>
+            <span class="stat-label">Clinical labels</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value" data-count="50">50+</span>
+            <span class="stat-label">Cities covered</span>
+          </div>
         </div>
       </div>
       <div class="hero-visual" aria-hidden="true" data-aos="fade-left" data-aos-duration="1000" data-aos-delay="200">
-        <svg class="hero-illustration" viewBox="0 0 500 400" preserveAspectRatio="xMidYMid meet">
-          <!-- Background -->
-          <rect width="500" height="400" fill="var(--green-light)"/>
-          <!-- Hospital/Clinic building -->
-          <g class="building" transform="translate(80, 80)">
-            <rect x="0" y="120" width="180" height="160" rx="8" fill="var(--white)" stroke="var(--green)" stroke-width="2"/>
-            <rect x="30" y="150" width="40" height="130" rx="4" fill="var(--green-light)"/>
-            <rect x="110" y="150" width="40" height="130" rx="4" fill="var(--green-light)"/>
-            <rect x="60" y="180" width="60" height="100" rx="4" fill="var(--green)"/>
-            <rect x="75" y="180" width="30" height="100" fill="var(--green-dark)"/>
-            <!-- Cross on building -->
-            <g transform="translate(170, 100)">
-              <rect x="-3" y="-20" width="6" height="40" rx="3" fill="var(--white)"/>
-              <rect x="-20" y="-3" width="40" height="6" rx="3" fill="var(--white)"/>
-              <circle cx="0" cy="0" r="18" fill="none" stroke="var(--white)" stroke-width="2"/>
+        <div class="hero-illustration-wrapper">
+          <svg class="hero-illustration" viewBox="0 0 600 480" preserveAspectRatio="xMidYMid meet">
+            <defs>
+              <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:var(--green-lighter)"/>
+                <stop offset="50%" style="stop-color:var(--green-light)"/>
+                <stop offset="100%" style="stop-color:var(--green-lighter)"/>
+              </linearGradient>
+              <linearGradient id="cardGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:var(--white)"/>
+                <stop offset="100%" style="stop-color:var(--bg-tertiary)"/>
+              </linearGradient>
+              <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="var(--green)" flood-opacity="0.15"/>
+              </filter>
+              <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+                <feMerge>
+                  <feMergeNode in="coloredBlur"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
+            </defs>
+            
+            <!-- Background atmosphere -->
+            <rect width="600" height="480" fill="url(#bgGradient)"/>
+            
+            <!-- Decorative geometric shapes -->
+            <g class="geo-shapes" opacity="0.08">
+              <circle cx="520" cy="60" r="120" fill="var(--green)"/>
+              <circle cx="80" cy="420" r="90" fill="var(--green-dark)"/>
+              <polygon points="550,450 480,350 620,350" fill="var(--green)"/>
+              <polygon points="50,30 120,150 -20,150" fill="var(--green-dark)"/>
             </g>
-          </g>
-          <!-- Pharmacy icon -->
-          <g class="pharmacy" transform="translate(340, 100)" data-aos="zoom-in" data-aos-delay="300">
-            <circle cx="0" cy="0" r="60" fill="var(--white)" stroke="var(--green)" stroke-width="3"/>
-            <path d="M0 -25 L0 25 M-25 0 L25 0" stroke="var(--green)" stroke-width="4" stroke-linecap="round"/>
-            <circle cx="0" cy="0" r="15" fill="none" stroke="var(--green)" stroke-width="2"/>
-            <circle cx="-12" cy="-12" r="4" fill="var(--green)"/>
-            <circle cx="12" cy="-12" r="4" fill="var(--green)"/>
-            <circle cx="-12" cy="12" r="4" fill="var(--green)"/>
-            <circle cx="12" cy="12" r="4" fill="var(--green)"/>
-          </g>
-          <!-- Doctor/Nurse -->
-          <g class="doctor" transform="translate(180, 280)" data-aos="fade-up" data-aos-delay="400">
-            <circle cx="0" cy="-60" r="25" fill="var(--green-light)" stroke="var(--green)" stroke-width="2"/>
-            <circle cx="-8" cy="-68" r="3" fill="var(--green)"/>
-            <circle cx="8" cy="-68" r="3" fill="var(--green)"/>
-            <path d="M-5 -55 Q0 -50 5 -55" stroke="var(--green)" stroke-width="2" fill="none" stroke-linecap="round"/>
-            <ellipse cx="0" cy="-10" rx="30" ry="40" fill="var(--green)"/>
-            <ellipse cx="0" cy="10" rx="20" ry="15" fill="var(--white)"/>
-            <rect x="-8" y="-20" width="16" height="8" rx="2" fill="var(--green)"/>
-          </g>
-          <!-- Medicine pack -->
-          <g class="medicine" transform="translate(400, 260)" data-aos="zoom-in" data-aos-delay="500">
-            <rect x="-35" y="-50" width="70" height="90" rx="6" fill="var(--white)" stroke="var(--green)" stroke-width="2"/>
-            <rect x="-25" y="-40" width="50" height="25" rx="3" fill="var(--green)"/>
-            <text x="0" y="-25" text-anchor="middle" font-family="Figtree, sans-serif" font-size="14" font-weight="700" fill="var(--white)">NAFDAC</text>
-            <text x="0" y="-10" text-anchor="middle" font-family="Figtree, sans-serif" font-size="10" fill="var(--green)">Reg. No: A4-7559</text>
-            <path d="M-15 20 L-5 30 L20 0" stroke="var(--green)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-          </g>
-          <!-- Floating particles -->
-          <g class="particles" aria-hidden="true">
-            <circle cx="80" cy="50" r="4" fill="var(--green)" opacity="0.3"/>
-            <circle cx="420" cy="60" r="3" fill="var(--green)" opacity="0.2"/>
-            <circle cx="100" cy="320" r="3" fill="var(--green)" opacity="0.2"/>
-            <circle cx="450" cy="350" r="4" fill="var(--green)" opacity="0.3"/>
-            <circle cx="250" cy="30" r="2" fill="var(--green)" opacity="0.4"/>
-            <circle cx="50" cy="200" r="2" fill="var(--green)" opacity="0.4"/>
-          </g>
-        </svg>
+            
+            <!-- Floating particles with animation -->
+            <g class="particles" aria-hidden="true">
+              <circle cx="80" cy="50" r="5" fill="var(--green)" opacity="0.4">
+                <animate attributeName="cy" values="50;35;50" dur="4s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1"/>
+                <animate attributeName="opacity" values="0.4;0.7;0.4" dur="4s" repeatCount="indefinite"/>
+              </circle>
+              <circle cx="520" cy="70" r="4" fill="var(--green)" opacity="0.3">
+                <animate attributeName="cy" values="70;55;70" dur="5s" repeatCount="indefinite" begin="1s" calcMode="spline" keySplines="0.4 0 0.6 1"/>
+              </circle>
+              <circle cx="100" cy="400" r="4" fill="var(--green)" opacity="0.3">
+                <animate attributeName="cy" values="400;385;400" dur="3.5s" repeatCount="indefinite" begin="0.5s" calcMode="spline" keySplines="0.4 0 0.6 1"/>
+              </circle>
+              <circle cx="550" cy="420" r="5" fill="var(--green)" opacity="0.4">
+                <animate attributeName="cy" values="420;405;420" dur="4.5s" repeatCount="indefinite" begin="1.5s" calcMode="spline" keySplines="0.4 0 0.6 1"/>
+              </circle>
+              <circle cx="300" cy="40" r="3" fill="var(--green)" opacity="0.5">
+                <animate attributeName="cy" values="40;25;40" dur="3s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1"/>
+              </circle>
+              <circle cx="60" cy="220" r="3" fill="var(--green)" opacity="0.4">
+                <animate attributeName="cx" values="60;45;60" dur="5s" repeatCount="indefinite" begin="2s" calcMode="spline" keySplines="0.4 0 0.6 1"/>
+              </circle>
+              <circle cx="450" cy="200" r="4" fill="var(--green)" opacity="0.3">
+                <animate attributeName="cy" values="200;185;200" dur="4s" repeatCount="indefinite" begin="0.8s" calcMode="spline" keySplines="0.4 0 0.6 1"/>
+              </circle>
+              <circle cx="200" cy="440" r="3" fill="var(--green)" opacity="0.3">
+                <animate attributeName="cy" values="440;425;440" dur="3.8s" repeatCount="indefinite" begin="1.2s" calcMode="spline" keySplines="0.4 0 0.6 1"/>
+              </circle>
+              <circle cx="400" cy="350" r="3" fill="var(--green)" opacity="0.35">
+                <animate attributeName="cx" values="400;415;400" dur="4.2s" repeatCount="indefinite" begin="0.3s" calcMode="spline" keySplines="0.4 0 0.6 1"/>
+              </circle>
+            </g>
+
+            <!-- Main hospital/clinic building - center left -->
+            <g class="building" transform="translate(60, 60)" filter="url(#softShadow)">
+              <!-- Building base -->
+              <rect x="0" y="140" width="200" height="180" rx="12" fill="url(#cardGradient)" stroke="var(--green)" stroke-width="2"/>
+              <!-- Windows left -->
+              <g fill="var(--green-light)">
+                <rect x="20" y="170" width="35" height="140" rx="4"/>
+                <rect x="20" y="170" width="35" height="40" rx="4" fill="var(--green)"/>
+              </g>
+              <!-- Windows right -->
+              <g fill="var(--green-light)">
+                <rect x="145" y="170" width="35" height="140" rx="4"/>
+                <rect x="145" y="170" width="35" height="40" rx="4" fill="var(--green)"/>
+              </g>
+              <!-- Center entrance -->
+              <rect x="75" y="220" width="50" height="100" rx="6" fill="var(--green)">
+                <animate attributeName="opacity" values="1;0.8;1" dur="3s" repeatCount="indefinite"/>
+              </rect>
+              <rect x="85" y="220" width="30" height="100" fill="var(--green-dark)"/>
+              <!-- Cross on building roof -->
+              <g transform="translate(180, 110)" filter="url(#glow)">
+                <rect x="-4" y="-25" width="8" height="50" rx="4" fill="var(--white)">
+                  <animate attributeName="y" values="-25;-28;-25" dur="2.5s" repeatCount="indefinite"/>
+                </rect>
+                <rect x="-22" y="-4" width="44" height="8" rx="4" fill="var(--white)">
+                  <animate attributeName="x" values="-22;-25;-22" dur="2.5s" repeatCount="indefinite"/>
+                </rect>
+                <circle cx="0" cy="0" r="22" fill="none" stroke="var(--white)" stroke-width="2.5" opacity="0.6">
+                  <animate attributeName="r" values="22;26;22" dur="3s" repeatCount="indefinite"/>
+                </circle>
+              </g>
+              <!-- Roof decoration -->
+              <rect x="20" y="130" width="160" height="12" rx="6" fill="var(--green-dark)" opacity="0.3"/>
+            </g>
+
+            <!-- Pharmacy cross symbol - top right -->
+            <g class="pharmacy-symbol" transform="translate(460, 110)" filter="url(#glow)">
+              <circle cx="0" cy="0" r="70" fill="var(--white)" stroke="var(--green)" stroke-width="4">
+                <animate attributeName="r" values="70;74;70" dur="3s" repeatCount="indefinite"/>
+              </circle>
+              <path d="M0 -35 L0 35 M-35 0 L35 0" stroke="var(--green)" stroke-width="6" stroke-linecap="round">
+                <animate attributeName="stroke-width" values="6;7;6" dur="2s" repeatCount="indefinite"/>
+              </path>
+              <circle cx="0" cy="0" r="20" fill="none" stroke="var(--green)" stroke-width="2.5" opacity="0.4">
+                <animate attributeName="r" values="20;28;20" dur="3s" repeatCount="indefinite"/>
+              </circle>
+              <!-- Corner indicators -->
+              <g fill="var(--green)">
+                <circle cx="-15" cy="-15" r="5"><animate attributeName="r" values="5;7;5" dur="1.5s" repeatCount="indefinite" begin="0s"/></circle>
+                <circle cx="15" cy="-15" r="5"><animate attributeName="r" values="5;7;5" dur="1.5s" repeatCount="indefinite" begin="0.2s"/></circle>
+                <circle cx="-15" cy="15" r="5"><animate attributeName="r" values="5;7;5" dur="1.5s" repeatCount="indefinite" begin="0.4s"/></circle>
+                <circle cx="15" cy="15" r="5"><animate attributeName="r" values="5;7;5" dur="1.5s" repeatCount="indefinite" begin="0.6s"/></circle>
+              </g>
+              <!-- Pulse ring -->
+              <circle cx="0" cy="0" r="70" fill="none" stroke="var(--green)" stroke-width="2" opacity="0.3">
+                <animate attributeName="r" values="70;100;70" dur="4s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.3;0;0.3" dur="4s" repeatCount="indefinite"/>
+              </circle>
+            </g>
+
+            <!-- Healthcare professional - bottom center -->
+            <g class="healthcare-pro" transform="translate(300, 380)" filter="url(#softShadow)">
+              <!-- Head -->
+              <circle cx="0" cy="-70" r="28" fill="var(--green-light)" stroke="var(--green)" stroke-width="2.5">
+                <animate attributeName="cy" values="-70;-73;-70" dur="4s" repeatCount="indefinite"/>
+              </circle>
+              <!-- Eyes -->
+              <circle cx="-10" cy="-78" r="3.5" fill="var(--green)">
+                <animate attributeName="r" values="3.5;0;3.5" dur="4s" repeatCount="indefinite" begin="2s"/>
+              </circle>
+              <circle cx="10" cy="-78" r="3.5" fill="var(--green)">
+                <animate attributeName="r" values="3.5;0;3.5" dur="4s" repeatCount="indefinite" begin="2s"/>
+              </circle>
+              <!-- Smile -->
+              <path d="M-6 -62 Q0 -58 6 -62" stroke="var(--green)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+              <!-- Body/Coat -->
+              <ellipse cx="0" cy="-15" rx="35" ry="45" fill="var(--green)">
+                <animate attributeName="ry" values="45;48;45" dur="4s" repeatCount="indefinite"/>
+              </ellipse>
+              <!-- White coat inner -->
+              <ellipse cx="0" cy="5" rx="22" ry="18" fill="var(--white)">
+                <animate attributeName="ry" values="18;20;18" dur="4s" repeatCount="indefinite"/>
+              </ellipse>
+              <!-- Stethoscope -->
+              <path d="M-15 -40 Q-30 -50 -25 -65" stroke="var(--green-dark)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <animate attributeName="d" values="M-15 -40 Q-30 -50 -25 -65; M-15 -40 Q-32 -52 -27 -67; M-15 -40 Q-30 -50 -25 -65" dur="2s" repeatCount="indefinite"/>
+              </path>
+              <circle cx="-25" cy="-65" r="6" fill="var(--green-dark)">
+                <animate attributeName="r" values="6;8;6" dur="1.5s" repeatCount="indefinite"/>
+              </circle>
+              <!-- Badge -->
+              <rect x="-10" y="-30" width="20" height="12" rx="3" fill="var(--green)">
+                <animate attributeName="y" values="-30;-32;-30" dur="3s" repeatCount="indefinite"/>
+              </rect>
+              <text x="0" y="-23" text-anchor="middle" font-family="Figtree, sans-serif" font-size="8" font-weight="700" fill="var(--white)">DR</text>
+            </g>
+
+            <!-- Medicine package - bottom right -->
+            <g class="medicine-pack" transform="translate(500, 350)" filter="url(#softShadow)">
+              <rect x="-40" y="-60" width="80" height="100" rx="8" fill="var(--white)" stroke="var(--green)" stroke-width="3"/>
+              <rect x="-30" y="-50" width="60" height="30" rx="4" fill="var(--green)">
+                <animate attributeName="height" values="30;32;30" dur="2.5s" repeatCount="indefinite"/>
+              </rect>
+              <text x="0" y="-32" text-anchor="middle" font-family="Familjen Grotesk, sans-serif" font-size="16" font-weight="700" fill="var(--white)">NAFDAC</text>
+              <text x="0" y="-14" text-anchor="middle" font-family="Figtree, sans-serif" font-size="11" fill="var(--green)">Reg. No: A4-7559</text>
+              <!-- Tablet strips -->
+              <g fill="var(--green-light)" stroke="var(--green)" stroke-width="1">
+                <rect x="-25" y="0" width="50" height="12" rx="3">
+                  <animate attributeName="x" values="-25;-27;-25" dur="2s" repeatCount="indefinite"/>
+                </rect>
+                <rect x="-25" y="16" width="50" height="12" rx="3">
+                  <animate attributeName="x" values="-25;-23;-25" dur="2s" repeatCount="indefinite" begin="0.5s"/>
+                </rect>
+                <rect x="-25" y="32" width="50" height="12" rx="3">
+                  <animate attributeName="x" values="-25;-27;-25" dur="2s" repeatCount="indefinite" begin="1s"/>
+                </rect>
+              </g>
+              <!-- Checkmark -->
+              <path d="M-20 25 L-8 38 L22 0" stroke="var(--green)" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <animate attributeName="stroke-dasharray" values="0 100; 60 100; 0 100" dur="3s" repeatCount="indefinite"/>
+                <animate attributeName="stroke-dashoffset" values="0;-60;0" dur="3s" repeatCount="indefinite"/>
+              </path>
+            </g>
+
+            <!-- Search/Verification UI mockup - floating card -->
+            <g class="ui-mockup" transform="translate(180, 20)" filter="url(#softShadow)">
+              <rect x="0" y="0" width="240" height="140" rx="16" fill="var(--white)" stroke="var(--border)" stroke-width="1.5"/>
+              <rect x="16" y="16" width="208" height="12" rx="6" fill="var(--green-light)">
+                <animate attributeName="width" values="208;180;208" dur="3s" repeatCount="indefinite"/>
+              </rect>
+              <rect x="16" y="40" width="120" height="16" rx="4" fill="var(--green)"/>
+              <text x="128" y="52" text-anchor="middle" font-family="Figtree, sans-serif" font-size="11" font-weight="600" fill="var(--white)">A4-7559</text>
+              <rect x="16" y="70" width="80" height="32" rx="8" fill="var(--green)">
+                <animate attributeName="width" values="80;90;80" dur="2s" repeatCount="indefinite"/>
+              </rect>
+              <text x="56" y="88" text-anchor="middle" font-family="Figtree, sans-serif" font-size="11" font-weight="600" fill="var(--white)">Check</text>
+              <!-- Result indicator -->
+              <circle cx="200" cy="100" r="18" fill="var(--green-tint)" stroke="var(--green)" stroke-width="2">
+                <animate attributeName="r" values="18;22;18" dur="2.5s" repeatCount="indefinite"/>
+              </circle>
+              <path d="M192 100 L198 106 L210 92" stroke="var(--green)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </g>
+
+            <!-- Location pin with pulse - connecting elements -->
+            <g class="location-pins" aria-hidden="true">
+              <g transform="translate(120, 280)">
+                <path d="M0 0 Q-8 15 0 35 Q8 15 0 0" fill="var(--green)">
+                  <animate attributeName="d" values="M0 0 Q-8 15 0 35 Q8 15 0 0; M0 0 Q-10 15 0 38 Q10 15 0 0; M0 0 Q-8 15 0 35 Q8 15 0 0" dur="2s" repeatCount="indefinite"/>
+                </path>
+                <circle cx="0" cy="10" r="6" fill="var(--white)">
+                  <animate attributeName="r" values="6;8;6" dur="1.5s" repeatCount="indefinite"/>
+                </circle>
+                <circle cx="0" cy="10" r="15" fill="none" stroke="var(--green)" stroke-width="2" opacity="0.3">
+                  <animate attributeName="r" values="15;25;15" dur="2s" repeatCount="indefinite"/>
+                  <animate attributeName="opacity" values="0.3;0;0.3" dur="2s" repeatCount="indefinite"/>
+                </circle>
+              </g>
+              <g transform="translate(480, 290)">
+                <path d="M0 0 Q-8 15 0 35 Q8 15 0 0" fill="var(--green-dark)">
+                  <animate attributeName="d" values="M0 0 Q-8 15 0 35 Q8 15 0 0; M0 0 Q-10 15 0 38 Q10 15 0 0; M0 0 Q-8 15 0 35 Q8 15 0 0" dur="2s" repeatCount="indefinite" begin="0.5s"/>
+                </path>
+                <circle cx="0" cy="10" r="6" fill="var(--white)">
+                  <animate attributeName="r" values="6;8;6" dur="1.5s" repeatCount="indefinite" begin="0.5s"/>
+                </circle>
+              </g>
+              <g transform="translate(300, 180)">
+                <path d="M0 0 Q-8 15 0 35 Q8 15 0 0" fill="var(--green)">
+                  <animate attributeName="d" values="M0 0 Q-8 15 0 35 Q8 15 0 0; M0 0 Q-10 15 0 38 Q10 15 0 0; M0 0 Q-8 15 0 35 Q8 15 0 0" dur="2s" repeatCount="indefinite" begin="1s"/>
+                </path>
+                <circle cx="0" cy="10" r="6" fill="var(--white)"/>
+              </g>
+            </g>
+
+            <!-- Connecting lines between elements -->
+            <g class="connections" stroke="var(--green)" stroke-width="1.5" stroke-dasharray="8 6" opacity="0.15" aria-hidden="true">
+              <path d="M260 240 Q280 200 300 180" fill="none">
+                <animate attributeName="stroke-dashoffset" values="0;20;0" dur="3s" repeatCount="indefinite"/>
+              </path>
+              <path d="M460 180 Q400 220 300 300" fill="none">
+                <animate attributeName="stroke-dashoffset" values="0;20;0" dur="3s" repeatCount="indefinite" begin="0.5s"/>
+              </path>
+              <path d="M260 320 Q280 350 300 380" fill="none">
+                <animate attributeName="stroke-dashoffset" values="0;20;0" dur="3s" repeatCount="indefinite" begin="1s"/>
+              </path>
+              <path d="M500 300 Q450 300 400 350" fill="none">
+                <animate attributeName="stroke-dashoffset" values="0;20;0" dur="3s" repeatCount="indefinite" begin="1.5s"/>
+              </path>
+            </g>
+          </svg>
+        </div>
       </div>
     </section>
 
     <section class="landing-trust" aria-label="Trusted by" data-aos="fade-up" data-aos-delay="100">
       <p class="trust-label">Data sources & partners</p>
       <div class="trust-logos">
-        <span data-aos="zoom-in" data-aos-delay="100">NAFDAC Greenbook</span>
-        <span data-aos="zoom-in" data-aos-delay="200">OpenStreetMap</span>
-        <span data-aos="zoom-in" data-aos-delay="300">Leaflet Maps</span>
-        <span data-aos="zoom-in" data-aos-delay="400">Supabase</span>
-        <span data-aos="zoom-in" data-aos-delay="500">Geoapify</span>
+        <span data-aos="zoom-in" data-aos-delay="100">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22c5.5 0 10-4.5 10-10S17.5 2 12 2 2 6.5 2 12s4.5 10 10 10z"/><path d="M12 6v6l4 2"/></svg>
+          NAFDAC Greenbook
+        </span>
+        <span data-aos="zoom-in" data-aos-delay="200">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          OpenStreetMap
+        </span>
+        <span data-aos="zoom-in" data-aos-delay="300">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          Leaflet Maps
+        </span>
+        <span data-aos="zoom-in" data-aos-delay="400">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          Supabase
+        </span>
+        <span data-aos="zoom-in" data-aos-delay="500">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          Geoapify
+        </span>
+        <span data-aos="zoom-in" data-aos-delay="600">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          openFDA
+        </span>
       </div>
     </section>
 
     <section class="landing-features" aria-labelledby="features-title" data-aos="fade-up" data-aos-delay="100">
       <h2 id="features-title" class="section-title">Everything you need</h2>
+      <p class="section-subtitle">Powerful tools for medicine safety and healthcare access</p>
       <div class="features-grid">
         <article class="feature-card" data-aos="fade-up" data-aos-delay="100">
           <div class="feature-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
           </div>
-          <h3>Check a record</h3>
-          <p>Type the NAFDAC registration number from the pack, or the medicine name, to see the official registration record.</p>
+          <h3>Verify a medicine</h3>
+          <p>Type the NAFDAC registration number from the pack, or search by medicine name, to instantly see the official registration record.</p>
+          <div class="feature-tags">
+            <span class="tag">NAFDAC lookup</span>
+            <span class="tag">Batch verification</span>
+            <span class="tag">Offline support</span>
+          </div>
         </article>
         <article class="feature-card" data-aos="fade-up" data-aos-delay="200">
           <div class="feature-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
           </div>
-          <h3>Find a pharmacy</h3>
-          <p>See licensed pharmacies, clinics, hospitals and labs near you, with directions and opening hours.</p>
+          <h3>Find care nearby</h3>
+          <p>Discover licensed pharmacies, clinics, hospitals and labs near you with directions, opening hours, and contact details.</p>
+          <div class="feature-tags">
+            <span class="tag">GPS location</span>
+            <span class="tag">City search</span>
+            <span class="tag">Filters</span>
+          </div>
         </article>
         <article class="feature-card" data-aos="fade-up" data-aos-delay="300">
           <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22c5.5 0 10-4.5 10-10S17.5 2 12 2 2 6.5 2 12s4.5 10 10 10z"/><path d="M12 6v6l4 2"/></svg>
           </div>
-          <h3>Report a problem</h3>
-          <p>Tell us about a medicine that looks fake, is packaged wrongly, or has a wrong record. Reports are reviewed by people.</p>
+          <h3>Safety alerts</h3>
+          <p>Stay informed with official NAFDAC recalls, counterfeit warnings, and medicine safety notices from trusted health authorities.</p>
+          <div class="feature-tags">
+            <span class="tag">Real-time alerts</span>
+            <span class="tag">Counterfeit reports</span>
+            <span class="tag">Community reports</span>
+          </div>
         </article>
         <article class="feature-card" data-aos="fade-up" data-aos-delay="400">
           <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
           </div>
-          <h3>Learn more</h3>
-          <p>Read about data sources, how checks work, and what a registration record can and cannot tell you.</p>
+          <h3>Clinical information</h3>
+          <p>Access US FDA drug label data for active ingredients — indications, dosages, warnings, interactions, and adverse reactions.</p>
+          <div class="feature-tags">
+            <span class="tag">openFDA data</span>
+            <span class="tag">Ingredient search</span>
+            <span class="tag">Detailed sections</span>
+          </div>
         </article>
+        <article class="feature-card" data-aos="fade-up" data-aos-delay="500">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z"/><path d="M12 6v6l4 2"/><path d="M9 14h6"/></svg>
+          </div>
+          <h3>AI Assistant</h3>
+          <p>Ask questions about medicines, ingredients, side effects, and interactions. Get answers grounded in NAFDAC and FDA data.</p>
+          <div class="feature-tags">
+            <span class="tag">RAG-powered</span>
+            <span class="tag">Source citations</span>
+            <span class="tag">Multi-source</span>
+          </div>
+        </article>
+        <article class="feature-card" data-aos="fade-up" data-aos-delay="600">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg>
+          </div>
+          <h3>Report problems</h3>
+          <p>Submit reports about suspected fake medicines, packaging issues, adverse reactions, or incorrect records — reviewed by real people.</p>
+          <div class="feature-tags">
+            <span class="tag">Anonymous</span>
+            <span class="tag">Photo upload</span>
+            <span class="tag">Follow-up</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="landing-demo" aria-labelledby="demo-title" data-aos="fade-up" data-aos-delay="200">
+      <div class="demo-content">
+        <div class="demo-text">
+          <h2 id="demo-title">Try it now</h2>
+          <p>Experience Kemist with our demo data. Search for medicines, explore nearby facilities, or ask the AI assistant a question.</p>
+          <div class="demo-search">
+            <label for="demoSearch" class="sr-only">Search medicines</label>
+            <input type="search" id="demoSearch" placeholder="Try: paracetamol, amoxicillin, A4-7559..." autocomplete="off" spellcheck="false">
+            <button class="btn btn-primary" onclick="launchDemo()">Launch Demo</button>
+          </div>
+          <p class="demo-hint">No installation required · Works offline · Free forever</p>
+        </div>
+        <div class="demo-visual" aria-hidden="true">
+          <svg class="demo-phone" viewBox="0 0 320 640" preserveAspectRatio="xMidYMid meet">
+            <defs>
+              <linearGradient id="phoneBg" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#0d1117"/>
+                <stop offset="100%" style="stop-color:#161b22"/>
+              </linearGradient>
+            </defs>
+            <!-- Phone frame -->
+            <rect x="10" y="10" width="300" height="620" rx="40" fill="url(#phoneBg)" stroke="#30363d" stroke-width="4"/>
+            <rect x="10" y="10" width="300" height="620" rx="40" fill="none" stroke="#00844F" stroke-width="2" opacity="0.3"/>
+            <!-- Notch -->
+            <rect x="130" y="14" width="60" height="8" rx="4" fill="#0d1117"/>
+            <!-- Screen content -->
+            <g transform="translate(25, 40)">
+              <!-- Status bar -->
+              <text x="10" y="20" font-family="Figtree" font-size="12" fill="#8b949e">9:41</text>
+              <text x="240" y="20" font-family="Figtree" font-size="12" fill="#8b949e" text-anchor="end">🔋 87%</text>
+              <!-- App header -->
+              <rect x="0" y="30" width="270" height="50" rx="0" fill="#161b22"/>
+              <text x="135" y="62" font-family="Familjen Grotesk" font-size="18" font-weight="700" fill="#4ade80" text-anchor="middle">Kemist</text>
+              <!-- Search bar -->
+              <rect x="15" y="100" width="240" height="48" rx="12" fill="#0d1117" stroke="#30363d" stroke-width="1.5"/>
+              <text x="35" y="130" font-family="Figtree" font-size="14" fill="#8b949e">Search NAFDAC no. or medicine...</text>
+              <circle cx="240" cy="124" r="18" fill="#00844F"/>
+              <path d="M235 124 L245 114 L255 124" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              <!-- Quick actions -->
+              <g transform="translate(15, 170)">
+                <rect x="0" y="0" width="80" height="80" rx="12" fill="#0d1117" stroke="#00844F" stroke-width="1.5" opacity="0.3"/>
+                <text x="40" y="35" font-family="Figtree" font-size="12" font-weight="600" fill="#4ade80" text-anchor="middle">Check</text>
+                <text x="40" y="55" font-family="Figtree" font-size="10" fill="#8b949e" text-anchor="middle">Medicine</text>
+              </g>
+              <g transform="translate(110, 170)">
+                <rect x="0" y="0" width="80" height="80" rx="12" fill="#0d1117" stroke="#4ade80" stroke-width="1.5" opacity="0.3"/>
+                <text x="40" y="35" font-family="Figtree" font-size="12" font-weight="600" fill="#4ade80" text-anchor="middle">Nearby</text>
+                <text x="40" y="55" font-family="Figtree" font-size="10" fill="#8b949e" text-anchor="middle">Facilities</text>
+              </g>
+              <g transform="translate(205, 170)">
+                <rect x="0" y="0" width="80" height="80" rx="12" fill="#0d1117" stroke="#f85149" stroke-width="1.5" opacity="0.3"/>
+                <text x="40" y="35" font-family="Figtree" font-size="12" font-weight="600" fill="#f85149" text-anchor="middle">Alerts</text>
+                <text x="40" y="55" font-family="Figtree" font-size="10" fill="#8b949e" text-anchor="middle">Safety</text>
+              </g>
+              <!-- Recent searches -->
+              <text x="15" y="280" font-family="Figtree" font-size="14" font-weight="600" fill="#f0f0f5">Recent</text>
+              <g transform="translate(15, 290)">
+                <rect x="0" y="0" width="240" height="44" rx="8" fill="#0d1117" stroke="#30363d" stroke-width="1"/>
+                <text x="15" y="30" font-family="Figtree" font-size="13" font-weight="500" fill="#f0f0f5">Paracetamol 500mg</text>
+                <text x="225" y="30" font-family="Figtree" font-size="11" fill="#8b949e" text-anchor="end">A4-7559</text>
+              </g>
+              <g transform="translate(15, 344)">
+                <rect x="0" y="0" width="240" height="44" rx="8" fill="#0d1117" stroke="#30363d" stroke-width="1"/>
+                <text x="15" y="30" font-family="Figtree" font-size="13" font-weight="500" fill="#f0f0f5">Amoxicillin 250mg</text>
+                <text x="225" y="30" font-family="Figtree" font-size="11" fill="#8b949e" text-anchor="end">A4-1234</text>
+              </g>
+              <g transform="translate(15, 398)">
+                <rect x="0" y="0" width="240" height="44" rx="8" fill="#0d1117" stroke="#30363d" stroke-width="1"/>
+                <text x="15" y="30" font-family="Figtree" font-size="13" font-weight="500" fill="#f0f0f5">Artemether/Lumefantrine</text>
+                <text x="225" y="30" font-family="Figtree" font-size="11" fill="#8b949e" text-anchor="end">A4-5678</text>
+              </g>
+              <!-- Bottom nav -->
+              <rect x="0" y="540" width="270" height="60" rx="0" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+              <g transform="translate(0, 540)">
+                <circle cx="45" cy="25" r="14" fill="#00844F"/>
+                <path d="M38 25 L43 30 L53 20" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <text x="45" y="52" font-family="Figtree" font-size="10" fill="#4ade80" text-anchor="middle">Check</text>
+              </g>
+              <g transform="translate(90, 0)">
+                <circle cx="45" cy="25" r="14" fill="#30363d"/>
+                <circle cx="45" cy="25" r="8" fill="#4ade80"/>
+                <text x="45" y="52" font-family="Figtree" font-size="10" fill="#8b949e" text-anchor="middle">Nearby</text>
+              </g>
+              <g transform="translate(180, 0)">
+                <circle cx="45" cy="25" r="14" fill="#30363d"/>
+                <path d="M38 17 L45 25 L52 17" stroke="#8b949e" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <text x="45" y="52" font-family="Figtree" font-size="10" fill="#8b949e" text-anchor="middle">Alerts</text>
+              </g>
+              <g transform="translate(225, 0)">
+                <circle cx="45" cy="25" r="14" fill="#30363d"/>
+                <circle cx="45" cy="25" r="8" fill="#f85149"/>
+                <text x="45" y="52" font-family="Figtree" font-size="10" fill="#8b949e" text-anchor="middle">More</text>
+              </g>
+            </g>
+          </svg>
+        </div>
       </div>
     </section>
 
@@ -155,22 +546,70 @@
     </section>
 
     <section class="landing-cta" data-aos="fade-up" data-aos-delay="300">
-      <h2>Ready to check your medicine?</h2>
-      <p>Launch the app and verify a registration in seconds.</p>
-      <a href="/app/" class="btn btn-primary btn-large">Launch Kemist</a>
+      <div class="cta-content">
+        <h2>Ready to check your medicine?</h2>
+        <p>Launch the app and verify a registration in seconds. Join thousands of Nigerians using Kemist for medicine safety.</p>
+        <div class="cta-actions">
+          <a href="/app/" class="btn btn-primary btn-large">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
+            <span>Launch Kemist</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+          <a href="/app/#/about" class="btn btn-outline btn-large">Learn more</a>
+        </div>
+        <div class="cta-trust">
+          <span>✓ No account required</span>
+          <span>✓ Works offline</span>
+          <span>✓ Free forever</span>
+          <span>✓ Open source</span>
+        </div>
+      </div>
     </section>
   </main>
 
   <footer class="landing-footer" role="contentinfo">
-    <p>Built by <strong>Fabian Codes HQ</strong>. Free software under <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener noreferrer">Apache License 2.0</a>.</p>
-    <p>Data sources: NAFDAC Greenbook · OpenStreetMap · Leaflet · Supabase · Geoapify</p>
-    <p class="footer-links">
-      <a href="/app/#/about">About</a>
-      <span aria-hidden="true">·</span>
-      <a href="/app/#/report">Report a Problem</a>
-      <span aria-hidden="true">·</span>
-      <a href="https://github.com/FabianCodesHQ/Kemist" target="_blank" rel="noopener noreferrer">GitHub</a>
-    </p>
+    <div class="footer-main">
+      <div class="footer-brand">
+        <svg width="32" height="32" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="112" fill="#00844F"/><path fill="#fff" d="M192 96h128v96h96v128h-96v96H192v-96H96V192h96z"/><path d="M216 262l32 32 56-68" fill="none" stroke="#00844F" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Kemist</span>
+      </div>
+      <p class="footer-tagline">Your medicine information companion</p>
+    </div>
+    <div class="footer-links">
+      <div class="footer-column">
+        <h4>Product</h4>
+        <a href="/app/#/check">Check Medicine</a>
+        <a href="/app/#/nearby">Find Facilities</a>
+        <a href="/app/#/alerts">Safety Alerts</a>
+        <a href="/app/#/clinical">Clinical Library</a>
+        <a href="/app/#/ai">AI Assistant</a>
+      </div>
+      <div class="footer-column">
+        <h4>Community</h4>
+        <a href="/app/#/report">Report a Problem</a>
+        <a href="/app/#/about">About Kemist</a>
+        <a href="https://github.com/FabianCodesHQ/Kemist" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="https://github.com/FabianCodesHQ/Kemist/issues" target="_blank" rel="noopener noreferrer">Report Bug</a>
+      </div>
+      <div class="footer-column">
+        <h4>Data Sources</h4>
+        <a href="https://www.nafdac.gov.ng/" target="_blank" rel="noopener noreferrer">NAFDAC Greenbook</a>
+        <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>
+        <a href="https://www.fda.gov/drugs" target="_blank" rel="noopener noreferrer">US FDA / openFDA</a>
+        <a href="https://leafletjs.com/" target="_blank" rel="noopener noreferrer">Leaflet Maps</a>
+      </div>
+      <div class="footer-column">
+        <h4>Legal</h4>
+        <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener noreferrer">Apache License 2.0</a>
+        <a href="/app/#/about">Privacy Policy</a>
+        <a href="/app/#/about">Terms of Use</a>
+        <a href="/app/#/about">Disclaimer</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>Built by <strong>Fabian Codes HQ</strong>. Free software under <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener noreferrer">Apache License 2.0</a>.</p>
+      <p class="footer-credits">Data: NAFDAC Greenbook · OpenStreetMap · Leaflet · Supabase · Geoapify · openFDA</p>
+    </div>
   </footer>
 
   <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>

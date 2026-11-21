@@ -16,6 +16,7 @@ const fs = require('node:fs');
 const external = require('../src/db/external');
 const { CITIES } = require('../src/lib/prefill');
 const serp = require('../src/lib/providers/serpapi');
+const apiKeys = require('../src/lib/api-keys');
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(`--${n}`);
@@ -70,7 +71,14 @@ async function main() {
   for (let i = 0; i < allowed; i++) {
     const c = plan[i];
     try {
-      const { rows } = await serp.search({ apiKey: process.env.SERPAPI_API_KEY, ...c, gl: process.env.SERPAPI_GL || '' });
+      const { key, credentialId } = await apiKeys.getKey('serpapi');
+      const start = Date.now();
+      const { rows } = await serp.search({ apiKey: key, ...c, gl: process.env.SERPAPI_GL || '' });
+      const latency = Date.now() - start;
+      await apiKeys.recordResult(credentialId, {
+        success: true, statusCode: 200, latencyMs: latency,
+        requestMetadata: { endpoint: 'search', query: c.q, lat: c.lat, lng: c.lng }
+      });
       await external.addUsage(PROVIDER, month, 1);          // count every attempted call straight away
       if (rows.length) { await external.upsertFacilities(rows); saved += rows.length; } else empty++;
       console.log(`  ${i + 1}/${allowed} "${c.q}" @ ${c.lat.toFixed(3)},${c.lng.toFixed(3)} -> ${rows.length} facilities`);

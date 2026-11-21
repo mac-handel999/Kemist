@@ -26,7 +26,7 @@
 
   const svg = (paths, extra = '') =>
     `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${paths}</svg>`;
-  const ICON = {
+const ICON = {
     check: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
     alert: svg('<path d="M12 4l9 16H3z"/><path d="M12 10v4"/><path d="M12 17h.01"/>'),
     info: svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>'),
@@ -34,8 +34,14 @@
     back: svg('<path d="M15 5l-7 7 7 7"/>'),
     search: svg('<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>'),
     phone: svg('<path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/>'),
-    route: svg('<path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3z"/><path d="M9 3v15M15 6v15"/>'),
+    route: svg('<path d="M9 18l-6 3V6l6-3 6 3 6-3z"/><path d="M9 3v15M15 6v15"/>'),
     locate: svg('<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>'),
+    clinical: svg('<path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>'),
+    nearby: svg('<path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>'),
+    ai: svg('<path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z"/><path d="M12 6v6l4 2"/><path d="M9 14h6"/>'),
+    report: svg('<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>'),
+    external: svg('<path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/>'),
+    news: svg('<path d="M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z"/><path d="M8 10h8"/><path d="M8 14h5"/><path d="M8 18h3"/>'),
   };
   const icon = (name) => h('span', { html: ICON[name], class: 'ico', 'aria-hidden': 'true', style: 'display:inline-flex' });
 
@@ -77,7 +83,7 @@
   async function route() {
     const { parts, params } = parseHash();
     const name = parts[0] || 'home';
-    document.querySelectorAll('.nav a').forEach((a) => {
+    document.querySelectorAll('.nav a, .mobile-nav a').forEach((a) => {
       const active = a.dataset.route === (name === 'drug' ? 'check' : name);
       if (active) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
@@ -91,17 +97,167 @@
     view.replaceChildren();
     window.scrollTo(0, 0);
     if (name === 'home') { document.title = 'Kemist'; return HomeView(); }
+    if (name === 'dashboard') { document.title = 'Dashboard · Kemist'; return DashboardView(); }
     if (name === 'drug' && parts[1]) { document.title = 'Medicine · Kemist'; return DrugView(parts[1]); }
     if (name === 'report') { document.title = 'Report a problem · Kemist'; return ReportView(params); }
     if (name === 'about') { document.title = 'About · Kemist'; return AboutView(); }
+    if (name === 'alerts') { document.title = 'Safety Alerts · Kemist'; return AlertsView(params); }
+    if (name === 'report-medicine') { document.title = 'Report a Medicine · Kemist'; return ReportMedicineView(params); }
+    if (name === 'clinical') { document.title = 'Clinical Library · Kemist'; return ClinicalLibraryView(params); }
+    if (name === 'ai') { document.title = 'AI Assistant · Kemist'; return AIAssistantView(params); }
+    if (name === 'news') { document.title = 'Health News · Kemist'; return NewsView(params); }
     document.title = 'Kemist: check a medicine, find a pharmacy';
     return CheckView(params.get('q') || '');
   }
 
   // ---------- Home / landing ----------
   function HomeView() {
-    // Redirect to Check view - landing page handles marketing content
-    location.hash = '#/check';
+    // Redirect to Dashboard view - landing page handles marketing content
+    location.hash = '#/dashboard';
+  }
+
+  // ---------- Dashboard view ----------
+  async function DashboardView() {
+    const page = h('div', { class: 'page dashboard' }, loading('Loading dashboard'));
+    view.append(page);
+
+    try {
+      const [newsRes] = await Promise.all([
+        api('/api/news?limit=6').catch(() => ({ data: [] }))
+      ]);
+
+      const news = newsRes.data || [];
+
+      put(page,
+        h('header', { class: 'dashboard-header' },
+          h('h1', null, 'Kemist Dashboard'),
+          h('p', { class: 'lead' }, 'Your medicine safety & healthcare intelligence centre')
+        ),
+        h('section', { class: 'dashboard-section', 'aria-labelledby': 'quickActionsTitle' },
+          h('h2', { id: 'quickActionsTitle' }, 'Quick Actions'),
+          h('div', { class: 'action-grid' },
+            h('a', { class: 'action-card', href: '#/check' },
+              h('div', { class: 'action-icon' }, icon('search')),
+              h('h3', null, 'Check Medicine'),
+              h('p', null, 'Verify NAFDAC registration, check authenticity, and view product details')
+            ),
+            h('a', { class: 'action-card', href: '#/alerts' },
+              h('div', { class: 'action-icon' }, icon('alert')),
+              h('h3', null, 'Safety Alerts'),
+              h('p', null, 'Official NAFDAC recalls, counterfeit warnings, and safety notices')
+            ),
+            h('a', { class: 'action-card', href: '#/clinical' },
+              h('div', { class: 'action-icon' }, icon('clinical')),
+              h('h3', null, 'Clinical Library'),
+              h('p', null, 'Drug indications, contraindications, interactions, and dosing info')
+            ),
+            h('a', { class: 'action-card', href: '#/nearby' },
+              h('div', { class: 'action-icon' }, icon('nearby')),
+              h('h3', null, 'Find Facilities'),
+              h('p', null, 'Locate pharmacies, clinics, and hospitals near you')
+            ),
+            h('a', { class: 'action-card', href: '#/ai' },
+              h('div', { class: 'action-icon' }, icon('ai')),
+              h('h3', null, 'AI Assistant'),
+              h('p', null, 'Ask questions about medicines, safety, and health topics')
+            ),
+            h('a', { class: 'action-card', href: '#/report-medicine' },
+              h('div', { class: 'action-icon' }, icon('report')),
+              h('h3', null, 'Report Medicine'),
+              h('p', null, 'Submit a counterfeit or substandard medicine report to NAFDAC')
+            )
+          )
+        ),
+        h('section', { class: 'dashboard-section', 'aria-labelledby': 'newsTitle' },
+          h('div', { class: 'section-header' },
+            h('h2', { id: 'newsTitle' }, 'Latest Health & Pharmacy News'),
+            h('a', { class: 'btn small', href: '#/news' }, 'View All')
+          ),
+          news.length === 0
+            ? h('div', { class: 'empty' }, 'No news available. Check back later.')
+            : h('div', { class: 'news-list' }, news.map((article) => h('article', { class: 'news-card' },
+                article.image_url && h('img', { class: 'news-image', src: article.image_url, alt: '', loading: 'lazy' }),
+                h('div', { class: 'news-content' },
+                  h('div', { class: 'news-meta' },
+                    h('span', { class: 'news-category' }, article.category),
+                    h('time', { class: 'news-date', datetime: article.published_at }, new Date(article.published_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' }))
+                  ),
+                  h('h3', null, article.title),
+                  article.snippet && h('p', { class: 'news-snippet' }, article.snippet),
+                  h('a', { class: 'news-link', href: article.article_url, target: '_blank', rel: 'noopener noreferrer' }, 'Read more', icon('external'))
+                )
+              )))
+        )
+      );
+    } catch (e) {
+      console.error('Dashboard error:', e);
+      put(page, h('div', { class: 'error' }, 'Failed to load dashboard. Please try again.'));
+    }
+  }
+
+  // ---------- News view ----------
+  async function NewsView(params) {
+    const page = h('div', { class: 'page news-page' }, loading('Loading news'));
+    view.append(page);
+
+    try {
+      const category = params.get('category') || '';
+      const country = params.get('country') || '';
+      const q = new URLSearchParams({ limit: '20' });
+      if (category) q.set('category', category);
+      if (country) q.set('country', country);
+
+      const { data: news } = await api(`/api/news?${q}`).catch(() => ({ data: [] }));
+
+      const categories = [
+        { value: '', label: 'All Categories' },
+        { value: 'pharmacy', label: 'Pharmacy & Medicines' },
+        { value: 'regulatory', label: 'Regulatory Updates' },
+        { value: 'health', label: 'Nigeria Health' },
+        { value: 'research', label: 'Medical Research' },
+        { value: 'outbreaks', label: 'Disease & Outbreaks' },
+        { value: 'global', label: 'Global Health' },
+      ];
+
+      put(page,
+        h('header', { class: 'page-header' },
+          h('h1', null, 'Health & Pharmacy News'),
+          h('p', { class: 'lead' }, 'Latest updates from NAFDAC, Ministry of Health, WHO, and global healthcare sources')
+        ),
+        h('form', { class: 'news-filters', onsubmit: (e) => { e.preventDefault(); location.hash = `#/news?${new URLSearchParams({ category: catSelect.value, country: countrySelect.value })}`; } },
+          h('select', { id: 'newsCategory', name: 'category' },
+            categories.map((c) => h('option', { value: c.value, selected: category === c.value }, c.label))
+          ),
+          h('select', { id: 'newsCountry', name: 'country' },
+            h('option', { value: '', selected: !country }, 'All Countries'),
+            h('option', { value: 'NG', selected: country === 'NG' }, 'Nigeria'),
+            h('option', { value: 'US', selected: country === 'US' }, 'United States'),
+            h('option', { value: 'GB', selected: country === 'GB' }, 'United Kingdom'),
+            h('option', { value: 'EU', selected: country === 'EU' }, 'European Union'),
+            h('option', { value: 'global', selected: country === 'global' }, 'Global')
+          ),
+          h('button', { class: 'btn primary', type: 'submit' }, icon('search'), 'Filter')
+        ),
+        news.length === 0
+          ? h('div', { class: 'empty' }, 'No news articles found. Try adjusting your filters.')
+          : h('div', { class: 'news-list' }, news.map((article) => h('article', { class: 'news-card' },
+              article.image_url && h('img', { class: 'news-image', src: article.image_url, alt: '', loading: 'lazy' }),
+              h('div', { class: 'news-content' },
+                h('div', { class: 'news-meta' },
+                  h('span', { class: 'news-category' }, article.category),
+                  h('span', { class: 'news-publisher' }, article.publisher_name),
+                  h('time', { class: 'news-date', datetime: article.published_at }, new Date(article.published_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' }))
+                ),
+                h('h3', null, article.title),
+                article.snippet && h('p', { class: 'news-snippet' }, article.snippet),
+                h('a', { class: 'news-link', href: article.article_url, target: '_blank', rel: 'noopener noreferrer' }, 'Read more', icon('external'))
+              )
+            )))
+      );
+    } catch (e) {
+      console.error('News error:', e);
+      put(page, h('div', { class: 'error' }, 'Failed to load news. Please try again.'));
+    }
   }
 
   // ---------- Check view ----------
@@ -386,6 +542,398 @@
         h('p', null, 'Kemist uses your location only to find places near you. It is not saved to your profile, and you can choose a city instead.')),
       install,
       h('a', { class: 'btn', href: '#/report' }, 'Report a problem')));
+  }
+
+  // ---------- Safety Alerts ----------
+  async function AlertsView(params) {
+    const page = h('div', { class: 'page' }, loading('Loading alerts'));
+    view.append(page);
+    try {
+      const search = params.get('q') || '';
+      const status = params.get('status') || 'active';
+      const type = params.get('type');
+      const severity = params.get('severity');
+      const q = new URLSearchParams({ search, status, limit: '50' });
+      if (type) q.set('type', type);
+      if (severity) q.set('severity', severity);
+      const { data } = await api(`/api/alerts?${q}`);
+
+      const TYPE_LABEL = {
+        counterfeit: 'Counterfeit', recall: 'Recall', substandard: 'Substandard',
+        adverse_event: 'Adverse Event', quality_issue: 'Quality Issue', other: 'Other'
+      };
+      const SEVERITY_LABEL = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' };
+      const SEVERITY_CLASS = { critical: 'bad', high: 'warn', medium: 'info', low: 'ok' };
+
+      put(page,
+        h('a', { class: 'back', href: '#/check' }, icon('back'), 'Back to Check'),
+        h('h1', null, 'Medicine Safety Alerts'),
+        h('p', { class: 'lead' }, 'Official safety notices, recalls, and counterfeit medicine alerts from NAFDAC and other health authorities.'),
+        h('form', { class: 'search', onsubmit: (e) => { e.preventDefault(); location.hash = `#/alerts?${new URLSearchParams({ q: searchInput.value, status: statusSelect.value, type: typeSelect.value, severity: severitySelect.value })}`; } },
+          h('input', { id: 'alertSearch', type: 'search', name: 'q', placeholder: 'Search alerts (product, ingredient, NAFDAC no.)', value: search, autocomplete: 'off' }),
+          h('select', { id: 'alertStatus', name: 'status' },
+            h('option', { value: 'active', selected: status === 'active' }, 'Active'),
+            h('option', { value: 'resolved', selected: status === 'resolved' }, 'Resolved'),
+            h('option', { value: 'superseded', selected: status === 'superseded' }, 'Superseded')),
+          h('select', { id: 'alertType', name: 'type' },
+            h('option', { value: '', selected: !type }, 'All types'),
+            Object.entries(TYPE_LABEL).map(([v, l]) => h('option', { value: v, selected: type === v }, l))),
+          h('select', { id: 'alertSeverity', name: 'severity' },
+            h('option', { value: '', selected: !severity }, 'All severities'),
+            Object.entries(SEVERITY_LABEL).map(([v, l]) => h('option', { value: v, selected: severity === v }, l))),
+          h('button', { class: 'btn primary', type: 'submit' }, icon('search'), 'Filter')),
+        data.length === 0
+          ? h('div', { class: 'empty' }, 'No alerts match your filters.')
+          : h('div', { class: 'stack' }, data.map((a) => h('article', { class: `alert-card ${SEVERITY_CLASS[a.severity]}`, style: 'border-left: 4px solid var(--' + (a.severity === 'critical' ? 'red' : a.severity === 'high' ? 'amber' : a.severity === 'medium' ? 'slate' : 'green') + ');' },
+            h('div', { class: 'alert-head' },
+              h('h2', null, a.title),
+              h('div', { class: 'alert-meta' },
+                pill(a.severity, SEVERITY_LABEL[a.severity]),
+                pill('info', TYPE_LABEL[a.alert_type] || a.alert_type),
+                h('span', { class: 'meta' }, new Date(a.published_at).toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' }))
+              )),
+            a.product_name && h('div', { class: 'meta' }, h('strong', null, 'Product: '), a.product_name),
+            a.nrn && h('div', { class: 'meta' }, h('strong', null, 'NAFDAC No: '), a.nrn),
+            a.batch_numbers && a.batch_numbers.length && h('div', { class: 'meta' }, h('strong', null, 'Batch(es): '), a.batch_numbers.join(', ')),
+            a.active_ingredients && h('div', { class: 'meta' }, h('strong', null, 'Ingredients: '), a.active_ingredients),
+            a.manufacturer && h('div', { class: 'meta' }, h('strong', null, 'Manufacturer: '), a.manufacturer),
+            h('div', { class: 'alert-desc' }, a.description),
+            a.source_url && h('a', { class: 'btn small', href: a.source_url, target: '_blank', rel: 'noopener noreferrer' }, 'View official notice')
+          )))
+      );
+    } catch (e) {
+      page.replaceChildren(h('a', { class: 'back', href: '#/check' }, icon('back'), 'Back to Check'), h('div', { class: 'msg err', role: 'alert' }, e.message));
+    }
+  }
+
+  // ---------- Report a Medicine ----------
+  function ReportMedicineView(params) {
+    const status = h('div', { 'aria-live': 'polite' });
+    const field = (label, id, control, hint) => h('div', { class: 'field' }, h('label', { for: id }, label), control, hint && h('span', { class: 'hint' }, hint));
+    const types = [
+      ['suspected_fake', 'Suspected fake medicine'],
+      ['packaging_mismatch', 'Packaging does not match'],
+      ['adverse_reaction', 'Adverse reaction after use'],
+      ['quality_concern', 'Quality concern (color, smell, texture)'],
+      ['incorrect_record', 'Record information looks wrong'],
+      ['other', 'Something else']
+    ];
+
+    const f = {
+      type: h('select', { id: 'rtype', name: 'report_type', required: true }, types.map(([v, l]) => h('option', { value: v }, l))),
+      product: h('input', { id: 'rproduct', name: 'product_name', required: true, maxlength: '150', placeholder: 'e.g. Paracetamol 500mg Tablet', autocomplete: 'off' }),
+      nrn: h('input', { id: 'rnrn', name: 'nrn', maxlength: '40', placeholder: 'NAFDAC registration number (if known)', autocomplete: 'off' }),
+      batch: h('input', { id: 'rbatch', name: 'batch_number', maxlength: '50', placeholder: 'Batch number (if on pack)', autocomplete: 'off' }),
+      expiry: h('input', { id: 'rexpiry', name: 'expiry_date', type: 'date' }),
+      manufacturer: h('input', { id: 'rmanuf', name: 'manufacturer', maxlength: '150', placeholder: 'Manufacturer name (if known)', autocomplete: 'off' }),
+      where: h('input', { id: 'rwhere', name: 'where_bought', maxlength: '200', placeholder: 'Pharmacy/shop name and area', autocomplete: 'off' }),
+      purchase: h('input', { id: 'rpurchase', name: 'purchase_date', type: 'date' }),
+      details: h('textarea', { id: 'rdetails', name: 'details', required: true, minlength: '10', maxlength: '2000', placeholder: 'What did you notice? E.g. blurry print, different color tablets, no batch number, unusual smell...' }),
+      contact: h('input', { id: 'rcontact', name: 'contact', maxlength: '120', placeholder: 'Phone or email for follow-up (optional)', autocomplete: 'off' }),
+      trap: h('input', { name: 'website', tabindex: '-1', autocomplete: 'off', 'aria-hidden': 'true' }),
+    };
+    const submit = h('button', { class: 'btn primary', type: 'submit' }, 'Submit Report');
+
+    const form = h('form', {
+      class: 'form',
+      onsubmit: async (e) => {
+        e.preventDefault();
+        submit.disabled = true;
+        status.replaceChildren(loading('Submitting'));
+        try {
+          await api('/api/medicine-reports', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              report_type: f.type.value, product_name: f.product.value, nrn: f.nrn.value,
+              batch_number: f.batch.value, expiry_date: f.expiry.value || null,
+              manufacturer: f.manufacturer.value, where_bought: f.where.value,
+              purchase_date: f.purchase.value || null, details: f.details.value, contact: f.contact.value
+            }),
+          });
+          view.replaceChildren(h('div', { class: 'page' },
+            h('a', { class: 'back', href: '#/check' }, icon('back'), 'Back to Check'),
+            h('div', { class: 'msg ok', role: 'status' }, 'Report submitted. Thank you for helping keep medicines safe.'),
+            h('p', { class: 'hint' }, 'If someone is unwell after taking a medicine, get medical help now. Do not wait for a reply.'),
+            h('a', { class: 'btn', href: '#/check' }, 'Back to Check')));
+        } catch (err) {
+          status.replaceChildren(h('div', { class: 'msg err', role: 'alert' }, err.message));
+          submit.disabled = false;
+        }
+      },
+    },
+      field('What are you reporting?', 'rtype', f.type),
+      field('Medicine name (as on pack)', 'rproduct', f.product),
+      field('NAFDAC number on the pack', 'rnrn', f.nrn, 'Optional, but helps us identify the product.'),
+      field('Batch number', 'rbatch', f.batch, 'Optional, found on the blister or carton.'),
+      field('Expiry date', 'rexpiry', f.expiry, 'Optional.'),
+      field('Manufacturer', 'rmanuf', f.manufacturer, 'Optional.'),
+      field('Where did you buy it?', 'rwhere', f.where, 'Pharmacy/shop name and area.'),
+      field('Purchase date', 'rpurchase', f.purchase, 'Optional.'),
+      field('What did you notice?', 'rdetails', f.details, 'Describe the problem. Do not include personal health details.'),
+      field('How can we reach you?', 'rcontact', f.contact, 'Optional phone or email if you want a follow-up.'),
+      h('div', { class: 'hp' }, h('label', null, 'Leave this empty', f.trap)),
+      submit, status);
+
+    view.append(h('div', { class: 'page' },
+      h('a', { class: 'back', href: '#/check' }, icon('back'), 'Back to Check'),
+      h('h1', null, 'Report a Medicine Problem'),
+      h('p', { class: 'lead' }, 'Tell us about a medicine that looks fake, has wrong packaging, caused a bad reaction, or has incorrect information. Reports are reviewed by people, not shown publicly.'),
+      form));
+  }
+
+  // ---------- Clinical Library ----------
+  async function ClinicalLibraryView(params) {
+    const page = h('div', { class: 'page' }, loading('Loading clinical library'));
+    view.append(page);
+    try {
+      const search = params.get('q') || '';
+      const ingredient = params.get('ingredient');
+      const q = new URLSearchParams({ limit: '50' });
+      if (search) q.set('search', search);
+      if (ingredient) q.set('ingredient', ingredient);
+      
+      // Load ingredients for the sidebar
+      const [{ data: ingredients }, { data: labels }] = await Promise.all([
+        api('/api/clinical-library/ingredients?limit=200'),
+        api(`/api/clinical-library?${q}`)
+      ]);
+
+      const CATEGORIES = [
+        { key: 'indications', label: 'Indications & Uses', icon: '📋', desc: 'What the medicine is used for' },
+        { key: 'contraindications', label: 'Contraindications', icon: '⚠️', desc: 'When not to use the medicine' },
+        { key: 'warnings', label: 'Warnings & Precautions', icon: '🔔', desc: 'Important safety warnings' },
+        { key: 'adverse_reactions', label: 'Adverse Reactions', icon: '📝', desc: 'Known side effects' },
+        { key: 'interactions', label: 'Drug Interactions', icon: '🔗', desc: 'Interactions with other medicines' },
+      ];
+
+      const SECTION_LABELS = {
+        indications: 'Indications & Uses',
+        contraindications: 'Contraindications',
+        warnings: 'Warnings & Precautions',
+        adverse_reactions: 'Adverse Reactions',
+        interactions: 'Drug Interactions',
+      };
+
+      function formatDate(d) {
+        return d ? new Date(d + 'T00:00:00').toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Unknown';
+      }
+
+      function renderLabelCard(label) {
+        const hasContent = Object.values(label.sections || {}).some(v => v && v.trim());
+        return h('article', { class: 'clinical-card' },
+          h('div', { class: 'clinical-card-head' },
+            h('h3', null, label.title || label.ingredient_label || label.ingredient_key),
+            h('div', { class: 'clinical-card-meta' },
+              label.jurisdiction && h('span', { class: 'meta' }, label.jurisdiction),
+              label.effective_date && h('span', { class: 'meta' }, `Updated ${formatDate(label.effective_date)}`),
+              label.source && h('span', { class: 'meta' }, `Source: ${label.source}`)
+            )),
+          h('div', { class: 'clinical-card-body' },
+            CATEGORIES.map((cat) => {
+              const content = label.sections?.[cat.key];
+              if (!content || !content.trim()) return null;
+              return h('details', { class: 'clinical-section', open: cat.key === 'indications' },
+                h('summary', null, h('span', { class: 'section-icon' }, cat.icon), cat.label),
+                h('div', { class: 'section-content' }, content)
+              );
+            }).filter(Boolean),
+            hasContent ? null : h('div', { class: 'hint' }, 'No detailed sections available for this label.')
+          ),
+          label.source_url && h('a', { class: 'btn small', href: label.source_url, target: '_blank', rel: 'noopener noreferrer' }, 'View full label on DailyMed')
+        );
+      }
+
+      put(page,
+        h('a', { class: 'back', href: '#/check' }, icon('back'), 'Back to Check'),
+        h('div', { class: 'clinical-layout' },
+          h('aside', { class: 'clinical-sidebar' },
+            h('h2', null, 'Clinical Library'),
+            h('p', { class: 'hint' }, 'US FDA drug label information for active ingredients in the Kemist database.'),
+            h('form', { class: 'search', onsubmit: (e) => { e.preventDefault(); location.hash = `#/clinical?${new URLSearchParams({ q: searchInput.value })}`; } },
+              h('input', { id: 'clinicalSearch', type: 'search', name: 'q', placeholder: 'Search ingredients, indications...', value: search, autocomplete: 'off' }),
+              h('button', { class: 'btn primary', type: 'submit' }, icon('search'))),
+            h('h3', null, 'Browse by Ingredient'),
+            h('div', { class: 'ingredient-list' }, ingredients.map((ing) => h('button', {
+              class: 'ingredient-btn' + (ingredient === ing.ingredient_key ? ' active' : ''),
+              type: 'button',
+              onclick: () => { location.hash = `#/clinical?${new URLSearchParams({ ingredient: ing.ingredient_key })}`; }
+            }, h('span', { class: 'ingredient-name' }, ing.ingredient_label || ing.ingredient_key), h('span', { class: 'ingredient-count' }, `${ing.count} label${ing.count !== 1 ? 's' : ''}`)))),
+            h('div', { class: 'callout', style: 'margin-top:16px' },
+              h('strong', null, 'Important: '),
+              'This is US FDA labeling data (openFDA/DailyMed). It may differ from NAFDAC-approved information for Nigerian products. Always consult a pharmacist or doctor.'
+            )
+          ),
+          h('main', { class: 'clinical-main' },
+            h('h1', null, ingredient ? `${ingredient}` : 'Clinical Drug Information'),
+            ingredient && h('p', { class: 'lead' }, `Showing ${labels.length} label${labels.length !== 1 ? 's' : ''} for "${ingredient}".`),
+            labels.length === 0
+              ? h('div', { class: 'empty' }, 'No clinical labels found. Try a different search or ingredient.')
+              : h('div', { class: 'stack' }, labels.map(renderLabelCard))
+          )
+        )
+      );
+    } catch (e) {
+      page.replaceChildren(h('a', { class: 'back', href: '#/check' }, icon('back'), 'Back to Check'), h('div', { class: 'msg err', role: 'alert' }, e.message));
+    }
+  }
+
+  // ---------- AI Assistant ----------
+  async function AIAssistantView(params) {
+    const page = h('div', { class: 'page ai-page' });
+    view.append(page);
+    
+    const STORAGE_KEY = 'kemist-ai-session';
+    let sessionId = localStorage.getItem(STORAGE_KEY) || crypto.randomUUID();
+    localStorage.setItem(STORAGE_KEY, sessionId);
+    
+    let history = [];
+    let isLoading = false;
+    
+    const chatContainer = h('div', { class: 'ai-chat-container' });
+    const inputArea = h('div', { class: 'ai-input-area' },
+      h('form', { class: 'ai-form', onsubmit: sendMessage },
+        h('textarea', { 
+          id: 'aiInput', 
+          placeholder: 'Ask me about medicines, ingredients, side effects, interactions...', 
+          rows: 3,
+          'aria-label': 'Message',
+          disabled: true
+        }),
+        h('div', { class: 'ai-form-actions' },
+          h('button', { class: 'btn primary', type: 'submit', id: 'aiSendBtn', disabled: true }, icon('route'), 'Send'),
+          h('button', { class: 'btn', type: 'button', onclick: clearChat }, 'New Chat')
+        )
+      ),
+      h('p', { class: 'hint ai-disclaimer' }, 'This AI provides information from NAFDAC records, US FDA labels, and safety alerts. It is not medical advice. Consult a healthcare professional for personal decisions.')
+    );
+    
+    page.append(
+      h('a', { class: 'back', href: '#/check' }, icon('back'), 'Back to Check'),
+      h('h1', null, 'Kemist AI Assistant'),
+      h('p', { class: 'lead' }, 'Ask questions about medicines, ingredients, dosages, side effects, and safety information.'),
+      chatContainer,
+      inputArea
+    );
+    
+    // Load history
+    await loadHistory();
+    
+    // Enable input after history loads
+    const input = $('#aiInput');
+    const sendBtn = $('#aiSendBtn');
+    input.disabled = false;
+    sendBtn.disabled = false;
+    input.focus();
+    
+    async function loadHistory() {
+      try {
+        const { data } = await api(`/api/ai/history/${sessionId}`);
+        history = (data || []).flatMap(c => [
+          { role: 'user', content: c.user_message },
+          { role: 'assistant', content: c.assistant_message }
+        ]);
+        renderMessages();
+      } catch (e) {
+        console.warn('Failed to load AI history:', e.message);
+      }
+    }
+    
+    async function sendMessage(e) {
+      e.preventDefault();
+      if (isLoading) return;
+      
+      const text = input.value.trim();
+      if (!text) return;
+      
+      isLoading = true;
+      input.disabled = true;
+      sendBtn.disabled = true;
+      
+      // Add user message to UI immediately
+      addMessage('user', text);
+      input.value = '';
+      input.style.height = 'auto';
+      
+      // Show typing indicator
+      const typingId = addTypingIndicator();
+      
+      try {
+        const res = await api('/api/ai/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text, sessionId, history: history.slice(-12) })
+        });
+        
+        removeTypingIndicator(typingId);
+        addMessage('assistant', res.response, res.sources);
+        
+        // Update history
+        history.push({ role: 'user', content: text });
+        history.push({ role: 'assistant', content: res.response });
+      } catch (err) {
+        removeTypingIndicator(typingId);
+        addMessage('assistant', `Sorry, I encountered an error: ${err.message}. Please try again.`);
+      } finally {
+        isLoading = false;
+        input.disabled = false;
+        sendBtn.disabled = false;
+        input.focus();
+      }
+    }
+    
+    function addMessage(role, content, sources) {
+      const msg = h('div', { class: `ai-message ${role}` },
+        h('div', { class: 'ai-message-content' }, content),
+        sources && sources.length ? h('div', { class: 'ai-sources' },
+          h('strong', null, 'Sources: '),
+          sources.map((s, i) => h('span', { class: 'ai-source-tag', key: i }, `${s.source}: ${s.title || s.content_type}`))
+        ) : null
+      );
+      chatContainer.append(msg);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+      return msg;
+    }
+    
+    function addTypingIndicator() {
+      const id = 'typing-' + Date.now();
+      const msg = h('div', { class: 'ai-message assistant typing', id },
+        h('div', { class: 'ai-message-content' },
+          h('span', { class: 'typing-dots' }, '⋯')
+        )
+      );
+      chatContainer.append(msg);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+      return id;
+    }
+    
+    function removeTypingIndicator(id) {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    }
+    
+    function renderMessages() {
+      chatContainer.replaceChildren();
+      for (const msg of history) {
+        addMessage(msg.role, msg.content);
+      }
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+    
+    function clearChat() {
+      if (confirm('Start a new chat? This will clear the current conversation.')) {
+        sessionId = crypto.randomUUID();
+        localStorage.setItem(STORAGE_KEY, sessionId);
+        history = [];
+        chatContainer.replaceChildren();
+        input.focus();
+      }
+    }
+    
+    // Auto-resize textarea
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 150) + 'px';
+    });
   }
 
   // ---------- Nearby / map ----------

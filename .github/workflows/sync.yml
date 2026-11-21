@@ -1,4 +1,4 @@
-name: Sync NAFDAC data & Clinical info & Facilities
+name: Sync NAFDAC data & Clinical info & Facilities & News & Alerts
 
 on:
   workflow_dispatch:
@@ -15,10 +15,18 @@ on:
       prefill_all:
         description: "Prefill facilities for all cities (true/false, default false)"
         required: false
+      sync_news:
+        description: "Sync news from SerpAPI (true/false, default false)"
+        required: false
+      sync_alerts:
+        description: "Sync NAFDAC alerts (true/false, default false)"
+        required: false
   schedule:
     - cron: "0 2 * * 1"   # every Monday at 02:00 UTC (NAFDAC weekly)
     - cron: "0 3 * * 0"   # every Sunday at 03:00 UTC (clinical monthly-ish)
     - cron: "0 4 1 * *"   # 1st of month at 04:00 UTC (facilities quarterly)
+    - cron: "0 6 * * *"   # daily at 06:00 UTC (news daily)
+    - cron: "0 5 * * 0"   # weekly Sunday at 05:00 UTC (alerts weekly)
 
 jobs:
   sync-nafdac:
@@ -73,3 +81,38 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           GEOAPIFY_API_KEY: ${{ secrets.GEOAPIFY_API_KEY }}
+
+  sync-news:
+    if: ${{ github.event_name == 'schedule' || inputs.sync_news == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Sync health & pharmacy news from SerpAPI
+        run: node scripts/sync-news.js
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
+
+  sync-alerts:
+    if: ${{ github.event_name == 'schedule' || inputs.sync_alerts == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Sync NAFDAC counterfeit/fake drug alerts
+        run: node scripts/sync-alerts.js
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

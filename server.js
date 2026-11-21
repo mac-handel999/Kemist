@@ -49,7 +49,12 @@ app.use('/api/meta', require('./src/routes/meta'));
 app.use('/api/drugs', require('./src/routes/drugs'));
 app.use('/api/facilities', require('./src/routes/facilities'));
 app.use('/api/reports', require('./src/routes/reports'));
+app.use('/api/medicine-reports', require('./src/routes/medicine-reports'));
+app.use('/api/alerts', require('./src/routes/alerts'));
 app.use('/api/clinical', require('./src/routes/clinical'));
+app.use('/api/clinical-library', require('./src/routes/clinical-library'));
+app.use('/api/ai', require('./src/routes/ai'));
+app.use('/api/news', require('./src/routes/news'));
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Endpoint not found.' }));
 
 app.use(express.static(path.join(__dirname, 'public'), {

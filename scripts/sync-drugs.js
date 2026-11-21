@@ -13,6 +13,7 @@ require('dotenv').config();
 const fs = require('node:fs');
 const { normalizeNafdacRecord } = require('../src/lib/nafdac');
 const { sha256 } = require('../src/lib/helpers');
+const apiKeys = require('../src/lib/api-keys');
 
 const API = 'https://api.apify.com/v2';
 const args = process.argv.slice(2);
@@ -21,17 +22,41 @@ const opt = (n) => { const i = args.indexOf(`--${n}`); return i >= 0 ? args[i + 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function apify(pathname, { method = 'GET', body, params = {} } = {}) {
-  const token = process.env.APIFY_TOKEN;
-  if (!token) throw new Error('APIFY_TOKEN is missing in .env');
-  const qs = new URLSearchParams({ token, ...params });
-  const res = await fetch(`${API}${pathname}?${qs}`, {
-    method,
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-    signal: AbortSignal.timeout(120000),
-  });
-  if (!res.ok) throw new Error(`Apify ${method} ${pathname} -> ${res.status} ${(await res.text()).slice(0, 300)}`);
-  return res.json();
+  const { key, credentialId } = await apiKeys.getKey('apify');
+  const start = Date.now();
+  const qs = new URLSearchParams({ token: key, ...params });
+  try {
+    const res = await fetch(`${API}${pathname}?${qs}`, {
+      method,
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(120000),
+    });
+    const latency = Date.now() - start;
+    if (!res.ok) {
+      const errText = (await res.text()).slice(0, 300);
+      await apiKeys.recordResult(credentialId, {
+        success: false, statusCode: res.status, errorMessage: errText, latencyMs: latency,
+        requestMetadata: { endpoint: pathname, method }
+      });
+      throw new Error(`Apify ${method} ${pathname} -> ${res.status} ${errText}`);
+    }
+    const data = await res.json();
+    await apiKeys.recordResult(credentialId, {
+      success: true, statusCode: res.status, latencyMs: latency,
+      requestMetadata: { endpoint: pathname, method }
+    });
+    return data;
+  } catch (e) {
+    const latency = Date.now() - start;
+    if (!e.message.includes('Apify')) {
+      await apiKeys.recordResult(credentialId, {
+        success: false, statusCode: 0, errorMessage: e.message, latencyMs: latency,
+        requestMetadata: { endpoint: pathname, method }
+      });
+    }
+    throw e;
+  }
 }
 
 async function runActor() {
@@ -53,13 +78,27 @@ async function runActor() {
 }
 
 async function datasetItems(datasetId) {
+  const { key, credentialId } = await apiKeys.getKey('apify');
+  const start = Date.now();
   const all = [];
   for (let offset = 0; ; offset += 1000) {
     const res = await fetch(`${API}/datasets/${datasetId}/items?${new URLSearchParams({
-      token: process.env.APIFY_TOKEN, format: 'json', clean: 'true', limit: '1000', offset: String(offset),
+      token: key, format: 'json', clean: 'true', limit: '1000', offset: String(offset),
     })}`, { signal: AbortSignal.timeout(120000) });
-    if (!res.ok) throw new Error(`Apify dataset -> ${res.status}`);
+    const latency = Date.now() - start;
+    if (!res.ok) {
+      const errText = (await res.text()).slice(0, 300);
+      await apiKeys.recordResult(credentialId, {
+        success: false, statusCode: res.status, errorMessage: errText, latencyMs: latency,
+        requestMetadata: { endpoint: 'dataset-items', datasetId }
+      });
+      throw new Error(`Apify dataset -> ${res.status}`);
+    }
     const page = await res.json();
+    await apiKeys.recordResult(credentialId, {
+      success: true, statusCode: res.status, latencyMs: latency,
+      requestMetadata: { endpoint: 'dataset-items', datasetId }
+    });
     if (!Array.isArray(page)) throw new Error('Apify dataset did not return a JSON array');
     all.push(...page);
     if (page.length < 1000) break;

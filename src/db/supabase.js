@@ -80,4 +80,13 @@ module.exports = {
     if (error) fail(error, 'insert report');
     return { id: data.id };
   },
+
+  async upsertEmbeddings(rows) {
+    if (!rows.length) return;
+    for (let i = 0; i < rows.length; i += 100) {
+      const chunk = rows.slice(i, i + 100).map((r) => ({ ...r, updated_at: new Date().toISOString() }));
+      const { error } = await db.from('document_embeddings').upsert(chunk, { onConflict: 'source,source_id,content_type' });
+      if (error) fail(error, 'upsert embeddings');
+    }
+  },
 };
