@@ -6,7 +6,7 @@
  *   node scripts/sync-news.js --dry                                              # dry run
  *   node scripts/sync-news.js --category pharmacy --country NG                   # filter by category/country
  *
- * Requires SERPAPI_KEY environment variable.
+ * Requires SERPAPI_API_KEY environment variable.
  * Get your key from https://serpapi.com/
  */
 
@@ -102,7 +102,21 @@ function getSourceType(publisherDomain, publisherName) {
 }
 
 async function fetchSerpApiNews(query, gl = 'ng', hl = 'en') {
-  const { key, credentialId } = await apiKeys.getKey('serpapi');
+  // Try to get key from API key manager (Supabase), fallback to env var
+  let key, credentialId;
+  try {
+    const cred = await apiKeys.getKey('serpapi');
+    key = cred.key;
+    credentialId = cred.credentialId;
+  } catch (e) {
+    // Fallback to environment variable for local development
+    key = process.env.SERPAPI_API_KEY;
+    credentialId = 'env-fallback';
+    if (!key) {
+      throw new Error('No SerpAPI credentials available. Add via manage-api-keys.js or set SERPAPI_API_KEY env var.');
+    }
+  }
+  
   const start = Date.now();
   
   const params = new URLSearchParams({
@@ -111,7 +125,6 @@ async function fetchSerpApiNews(query, gl = 'ng', hl = 'en') {
     gl,
     hl,
     api_key: key,
-    so: '1', // sort by date
   });
 
   try {
@@ -122,23 +135,27 @@ async function fetchSerpApiNews(query, gl = 'ng', hl = 'en') {
     
     if (!res.ok) {
       const errText = (await res.text()).slice(0, 300);
-      await apiKeys.recordResult(credentialId, {
-        success: false, statusCode: res.status, errorMessage: errText, latencyMs: latency,
-        requestMetadata: { endpoint: 'google_news', query }
-      });
+      if (credentialId !== 'env-fallback') {
+        await apiKeys.recordResult(credentialId, {
+          success: false, statusCode: res.status, errorMessage: errText, latencyMs: latency,
+          requestMetadata: { endpoint: 'google_news', query }
+        });
+      }
       throw new Error(`SerpAPI ${res.status}: ${errText}`);
     }
     
     const data = await res.json();
-    await apiKeys.recordResult(credentialId, {
-      success: true, statusCode: res.status, latencyMs: latency,
-      requestMetadata: { endpoint: 'google_news', query }
-    });
+    if (credentialId !== 'env-fallback') {
+      await apiKeys.recordResult(credentialId, {
+        success: true, statusCode: res.status, latencyMs: latency,
+        requestMetadata: { endpoint: 'google_news', query }
+      });
+    }
     
     return data.news_results || [];
   } catch (e) {
     const latency = Date.now() - start;
-    if (!e.message.includes('SerpAPI')) {
+    if (!e.message.includes('SerpAPI') && credentialId !== 'env-fallback') {
       await apiKeys.recordResult(credentialId, {
         success: false, statusCode: 0, errorMessage: e.message, latencyMs: latency,
         requestMetadata: { endpoint: 'google_news', query }
@@ -153,12 +170,14 @@ async function upsertArticle(article, queryMeta) {
   const category = categorizeArticle(article.title, article.snippet, article.publisher_domain);
   const sourceType = getSourceType(article.publisher_domain, article.publisher_name);
   
-  // Check if article already exists by content hash or URL
-  const { data: existing } = await supabase
-    .from('news_articles')
-    .select('id, published_at')
-    .or(`content_hash.eq.${contentHash},article_url.eq.${article.article_url}`)
-    .maybeSingle();
+  // Check if article already exists by content hash or URL (if URL exists)
+  let existingQuery = supabase.from('news_articles').select('id, published_at').eq('content_hash', contentHash);
+  
+  if (article.article_url) {
+    existingQuery = existingQuery.or(`content_hash.eq.${contentHash},article_url.eq.${article.article_url}`);
+  }
+  
+  const { data: existing } = await existingQuery.maybeSingle();
 
   const articleData = {
     title: article.title,
@@ -166,7 +185,7 @@ async function upsertArticle(article, queryMeta) {
     snippet: article.snippet,
     article_url: article.article_url,
     image_url: article.image_url,
-    publisher_name: article.publisher_name,
+    publisher_name: article.publisher_name || article.publisher_domain || 'Unknown Publisher',
     publisher_domain: article.publisher_domain,
     published_at: article.published_at || new Date().toISOString(),
     fetched_at: new Date().toISOString(),
@@ -306,8 +325,8 @@ async function main() {
     queries = queries.filter(q => q.country === country);
   }
   
-  if (!process.env.SERPAPI_KEY && !dryRun) {
-    console.error('ERROR: SERPAPI_KEY environment variable is required');
+  if (!process.env.SERPAPI_API_KEY && !dryRun) {
+    console.error('ERROR: SERPAPI_API_KEY environment variable is required');
     console.log('Get your key from https://serpapi.com/');
     process.exit(1);
   }

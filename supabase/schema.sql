@@ -13,8 +13,6 @@ create table if not exists public.drugs (
   nrn                  text not null,                   -- NAFDAC registration number, e.g. A4-7559 (can repeat across records)
   product_name         text not null,
   active_ingredients   text,                            -- "Glucose; Sodium Chloride" (sorted by the importer)
-  ingredient_synonym   text,                            -- alternative ingredient names
-  composition          text,                            -- detailed composition text from NAFDAC
   strength             text,                            -- "100 mg" / "4.3%; 0.9%"
   dosage_form          text,                            -- Tablet, Capsule, Suspension ...
   route                text,                            -- Oral, Intravenous ...
@@ -28,12 +26,10 @@ create table if not exists public.drugs (
   approval_date        date,
   expiry_date          date,
   status               text not null default 'Unknown', -- Active / Inactive etc., exactly as reported by the source
-  data_quality_note    text,                            -- NAFDAC review notes (duplicate NRN, check pack size, etc.)
   smpc_url             text,
-  detail_url           text,                            -- link to NAFDAC product page
-  source_url           text,
   image_url            text,
   source               text not null default 'NAFDAC Greenbook',
+  source_url           text,
   fetched_at           timestamptz not null default now(),
   created_at           timestamptz not null default now(),
   unique (source, source_record_id),
@@ -225,3 +221,107 @@ alter table public.facility_fetch_log enable row level security;
 alter table public.reports            enable row level security;
 alter table public.source_records     enable row level security;
 alter table public.sync_logs          enable row level security;
+-- Kemist migration 002: clinical label information (US labels from openFDA/DailyMed).
+-- Run once in the Supabase SQL Editor. Safe to re-run.
+create table if not exists public.clinical_info (
+  id                uuid primary key default gen_random_uuid(),
+  ingredient_key    text not null,                 -- canonical single-ingredient key, e.g. 'paracetamol'
+  ingredient_label  text,
+  source            text not null,                 -- 'openFDA'
+  source_record_id  text not null,                 -- the label's set id
+  jurisdiction      text not null default 'United States',
+  title             text,
+  indications       text,
+  contraindications text,
+  warnings          text,
+  adverse_reactions text,
+  interactions      text,
+  label_version     text,
+  effective_date    date,
+  source_url        text,
+  review_status     text not null default 'unreviewed',
+  fetched_at        timestamptz not null default now(),
+  unique (source, source_record_id)
+);
+create index if not exists clinical_info_ingredient_idx on public.clinical_info (ingredient_key);
+alter table public.clinical_info enable row level security;
+
+-- 1) Monthly API-call counter (so the free plan's call limit is never exceeded by accident)
+create table if not exists public.api_usage (
+  provider text not null,
+  month    text not null,                 -- 'YYYY-MM'
+  calls    int  not null default 0,
+  primary key (provider, month)
+);
+alter table public.api_usage enable row level security;
+
+-- 2) nearby_facilities now also returns the data source, so the app can label each listing
+drop function if exists public.nearby_facilities(double precision, double precision, int, text[], int);
+create or replace function public.nearby_facilities(
+  in_lat double precision,
+  in_lng double precision,
+  radius_m int default 5000,
+  types text[] default null,
+  lim int default 60
+)
+returns table (
+  id uuid, name text, type text, address text, phone text, opening_hours text,
+  emergency boolean, is_verified boolean, source text, lat double precision, lng double precision, distance_m double precision
+)
+language sql stable
+set search_path = public
+as $$
+  select * from (
+    select f.id, f.name, f.type, f.address, f.phone, f.opening_hours, f.emergency, f.is_verified, f.source, f.lat, f.lng,
+           6371000 * 2 * asin(sqrt(
+             power(sin(radians(f.lat - in_lat) / 2), 2) +
+             cos(radians(in_lat)) * cos(radians(f.lat)) * power(sin(radians(f.lng - in_lng) / 2), 2)
+           )) as distance_m
+    from public.facilities f
+    where f.lat between in_lat - (radius_m / 111320.0) and in_lat + (radius_m / 111320.0)
+      and f.lng between in_lng - (radius_m / (111320.0 * greatest(cos(radians(in_lat)), 0.01)))
+                    and in_lng + (radius_m / (111320.0 * greatest(cos(radians(in_lat)), 0.01)))
+      and (types is null or f.type = any(types))
+  ) x
+  where x.distance_m <= radius_m
+  order by x.distance_m
+  limit least(lim, 200);
+$$;
+
+-- Off switch, if you ever want the Google-sourced rows gone:
+--   delete from public.facilities where source like 'Google Maps%';
+create table if not exists public.alerts (
+  id            uuid primary key default gen_random_uuid(),
+  alert_no      text,                                  -- e.g. 023/2026
+  title         text not null,
+  summary       text,
+  alert_type    text not null default 'notice' check (alert_type in ('counterfeit','recall','substandard','unregistered','notice')),
+  nrns          text[] not null default '{}',          -- registration numbers mentioned in the alert, as written
+  nrn_keys      text[] not null default '{}',          -- the same, normalised (letters+digits only) for matching
+  batch_numbers text[] not null default '{}',
+  published_at  date,
+  source        text not null default 'NAFDAC',
+  source_url    text not null,
+  fetched_at    timestamptz not null default now(),
+  unique (source, source_url)
+);
+create index if not exists alerts_nrn_keys_idx  on public.alerts using gin (nrn_keys);
+create index if not exists alerts_published_idx on public.alerts (published_at desc nulls last);
+alter table public.alerts enable row level security;
+create table if not exists public.news_articles (
+  id           uuid primary key default gen_random_uuid(),
+  title        text not null,
+  snippet      text,
+  url          text not null unique,
+  publisher    text,
+  published_at timestamptz,
+  category     text not null default 'nigeria' check (category in ('nigeria','pharmacy','safety','outbreak','world')),
+  country      text,
+  query_id     text,
+  content_hash text not null,
+  fetched_at   timestamptz not null default now()
+);
+create index if not exists news_published_idx on public.news_articles (published_at desc nulls last);
+create index if not exists news_category_idx  on public.news_articles (category);
+create index if not exists news_hash_idx      on public.news_articles (content_hash);
+alter table public.news_articles enable row level security;

@@ -2,7 +2,7 @@
 const router = require('express').Router();
 const rateLimit = require('express-rate-limit');
 const store = require('../db');
-const { searchDocuments } = require('../lib/embeddings');
+const { searchDocuments, areEmbeddingsEnabled } = require('../lib/embeddings');
 const crypto = require('node:crypto');
 
 // Stricter limit for AI chat
@@ -40,16 +40,20 @@ router.post('/chat', limiter, async (req, res, next) => {
     const session = sessionId || crypto.randomUUID();
     const userMsg = message.trim();
 
-    // Retrieve relevant documents using RAG
+    // Retrieve relevant documents using RAG (if embeddings are enabled)
     let retrievedDocs = [];
-    try {
-      retrievedDocs = await searchDocuments(userMsg, {
-        source: ['drugs', 'clinical_info', 'alerts'],
-        threshold: 0.65,
-        count: 8,
-      });
-    } catch (e) {
-      console.warn('[ai] Document search failed:', e.message);
+    if (areEmbeddingsEnabled()) {
+      try {
+        retrievedDocs = await searchDocuments(userMsg, {
+          source: ['drugs', 'clinical_info', 'alerts'],
+          threshold: 0.65,
+          count: 8,
+        });
+      } catch (e) {
+        console.warn('[ai] Document search failed:', e.message);
+      }
+    } else {
+      console.info('[ai] Skipping RAG - embeddings not configured (set EMBEDDING_API_KEY to enable)');
     }
 
     // Build context from retrieved documents

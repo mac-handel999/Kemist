@@ -10,22 +10,23 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node --test tests/*.js",
     "sync:drugs": "node scripts/sync-drugs.js",
     "sync:file": "node scripts/sync-drugs.js --file",
     "sync:clinical": "node scripts/import-clinical.js",
     "prefill:facilities": "node scripts/prefill-facilities.js",
+    "test": "node --test",
     "import:serpapi": "node scripts/import-serpapi.js",
-    "manage:keys": "node scripts/manage-api-keys.js"
+    "import:news": "node scripts/import-news.js",
+    "import:alerts": "node scripts/import-alerts.js",
+    "images:add": "node scripts/add-drug-image.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.0",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
-    "dotenv": "^16.6.1",
+    "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-rate-limit": "^7.4.0",
-    "gitignore": "^0.7.0",
-    "helmet": "^7.1.0"
+    "helmet": "^7.1.0",
+    "@supabase/supabase-js": "^2.45.0"
   }
 }

@@ -25,9 +25,9 @@ create table if not exists public.news_articles (
   title               text not null,
   description         text,
   snippet             text,                      -- short excerpt for display
-  article_url         text not null unique,
+  article_url         text unique,
   image_url           text,
-  publisher_name      text not null,
+  publisher_name      text,
   publisher_domain    text,
   published_at        timestamptz not null,
   fetched_at          timestamptz not null default now(),

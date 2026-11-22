@@ -42,6 +42,7 @@ const ICON = {
     report: svg('<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>'),
     external: svg('<path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/>'),
     news: svg('<path d="M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z"/><path d="M8 10h8"/><path d="M8 14h5"/><path d="M8 18h3"/>'),
+    send: svg('<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/>'),
   };
   const icon = (name) => h('span', { html: ICON[name], class: 'ico', 'aria-hidden': 'true', style: 'display:inline-flex' });
 
@@ -174,7 +175,11 @@ const ICON = {
             h('a', { class: 'btn small', href: '#/news' }, 'View All')
           ),
           news.length === 0
-            ? h('div', { class: 'empty' }, 'No news available. Check back later.')
+            ? h('div', { class: 'empty' }, 
+                h('p', null, 'No news available yet.'),
+                h('p', null, 'Run the news sync to populate:'),
+                h('pre', { style: 'background:var(--bg-tertiary); padding:10px; border-radius:6px; overflow-x:auto; margin-top:6px; font-size:0.8rem;' }, 'SERPAPI_API_KEY=your_key node scripts/sync-news.js')
+              )
             : h('div', { class: 'news-list' }, news.map((article) => h('article', { class: 'news-card' },
                 article.image_url && h('img', { class: 'news-image', src: article.image_url, alt: '', loading: 'lazy' }),
                 h('div', { class: 'news-content' },
@@ -239,7 +244,12 @@ const ICON = {
           h('button', { class: 'btn primary', type: 'submit' }, icon('search'), 'Filter')
         ),
         news.length === 0
-          ? h('div', { class: 'empty' }, 'No news articles found. Try adjusting your filters.')
+          ? h('div', { class: 'empty' }, 
+              h('p', null, 'No news articles found.'),
+              h('p', null, 'News is updated daily via SerpAPI (Google News). To populate news, run the sync script:'),
+              h('pre', { style: 'background:var(--bg-tertiary); padding:12px; border-radius:8px; overflow-x:auto; margin-top:8px;' }, 'SERPAPI_API_KEY=your_key node scripts/sync-news.js'),
+              h('p', { class: 'hint', style: 'margin-top:12px;' }, 'Or configure SERPAPI_API_KEY in your environment and run the GitHub Actions workflow.')
+            )
           : h('div', { class: 'news-list' }, news.map((article) => h('article', { class: 'news-card' },
               article.image_url && h('img', { class: 'news-image', src: article.image_url, alt: '', loading: 'lazy' }),
               h('div', { class: 'news-content' },
@@ -250,7 +260,9 @@ const ICON = {
                 ),
                 h('h3', null, article.title),
                 article.snippet && h('p', { class: 'news-snippet' }, article.snippet),
-                h('a', { class: 'news-link', href: article.article_url, target: '_blank', rel: 'noopener noreferrer' }, 'Read more', icon('external'))
+                article.article_url
+                  ? h('a', { class: 'news-link', href: article.article_url, target: '_blank', rel: 'noopener noreferrer' }, 'Read more', icon('external'))
+                  : h('span', { class: 'news-link disabled' }, 'No link available', icon('external'))
               )
             )))
       );
@@ -266,14 +278,20 @@ const ICON = {
   function medicineCard(d) {
     const detail = [d.strength, d.dosage_form].filter(Boolean).join(' · ');
     const title = d.display_name || d.product_name;
+    const img = d.image ? d.image.url : null;
+    const imgHtml = img
+      ? `<img class="result-img" src="${img}" alt="Pack of ${title}" loading="lazy" width="64" height="64">`
+      : (window.KemistArt && window.KemistArt.form ? window.KemistArt.form(d.dosage_form) : '');
     return h('button', { class: 'result', type: 'button', onclick: () => { location.hash = `#/drug/${d.id}`; } },
-      h('div', { class: 'result-top' },
-        h('h3', null, title),
-        pill(d.verdict.level)),
-      detail && h('div', { class: 'meta' }, detail),
-      h('div', { class: 'result-top' },
-        h('span', { class: 'meta' }, d.applicant || d.manufacturer || 'Company not listed'),
-        h('span', { class: 'nrn-tag' }, d.nrn)));
+      h('div', { class: 'result-img-wrap' }, imgHtml ? h('div', { html: imgHtml }) : null),
+      h('div', { class: 'result-body' },
+        h('div', { class: 'result-top' },
+          h('h3', null, title),
+          pill(d.verdict.level)),
+        detail && h('div', { class: 'meta' }, detail),
+        h('div', { class: 'result-top' },
+          h('span', { class: 'meta' }, d.applicant || d.manufacturer || 'Company not listed'),
+          h('span', { class: 'nrn-tag' }, d.nrn))));
   }
 
   function CheckView(initialQuery) {
@@ -396,6 +414,25 @@ const ICON = {
       const title = d.display_name || d.product_name;
       document.title = `${title} · Kemist`;
       const v = d.verdict;
+      
+      // Build image element
+      let imgEl = null;
+      if (d.image && d.image.url) {
+        imgEl = h('figure', { class: 'drug-image' },
+          h('a', { href: d.image.url, target: '_blank', rel: 'noopener noreferrer', class: 'drug-image-link', 'aria-label': `Enlarge photo of ${title}` },
+            h('img', { src: d.image.url, alt: `Pack of ${title}`, loading: 'lazy', width: '320', height: '320' })),
+          h('figcaption', null,
+            h('span', { class: 'img-caption' }, 'Photo of the pack'),
+            d.image.credit && h('span', { class: 'img-credit' }, `Credit: ${d.image.credit}`)));
+      } else {
+        const illustration = window.KemistArt && window.KemistArt.form ? window.KemistArt.form(d.dosage_form) : '';
+        imgEl = h('figure', { class: 'drug-image illustration' },
+          h('div', { class: 'illustration-wrap', html: illustration }),
+          h('figcaption', null,
+            h('span', { class: 'img-caption' }, 'Illustration, not the actual pack'),
+            h('a', { class: 'btn small', href: `#/report-medicine?${new URLSearchParams({ product: d.product_name, nrn: d.nrn })}` }, 'Have a photo of this pack? Send it to us')));
+      }
+      
       const rows = [
         ['NAFDAC number', d.nrn], ['Active ingredients', d.active_ingredients], ['Ingredient synonyms', d.ingredient_synonym], ['Composition', d.composition], ['Strength', d.strength],
         ['Dosage form', d.dosage_form], ['Route', d.route], ['Sold as', d.marketing_category],
@@ -411,6 +448,7 @@ const ICON = {
 
       put(page,
         h('a', { class: 'back', href: '#/' }, icon('back'), 'Back to search'),
+        imgEl,
         h('div', { class: 'product-head' }, h('h1', null, title), h('span', { class: 'nrn-big' }, d.nrn)),
         h('div', { class: `seal-card ${v.level}` },
           h('div', { class: 'seal' }, h('span', { html: ICON[LEVEL_ICON[v.level]], style: 'display:inline-flex' })),
@@ -575,7 +613,7 @@ const ICON = {
         h('a', { class: 'back', href: '#/check' }, icon('back'), 'Back to Check'),
         h('h1', null, 'Medicine Safety Alerts'),
         h('p', { class: 'lead' }, 'Official safety notices, recalls, and counterfeit medicine alerts from NAFDAC and other health authorities.'),
-        h('form', { class: 'search', onsubmit: (e) => { e.preventDefault(); location.hash = `#/alerts?${new URLSearchParams({ q: searchInput.value, status: statusSelect.value, type: typeSelect.value, severity: severitySelect.value })}`; } },
+        h('form', { class: 'search', onsubmit: (e) => { e.preventDefault(); const q = document.getElementById('alertSearch').value; location.hash = `#/alerts?${new URLSearchParams({ q, status: statusSelect.value, type: typeSelect.value, severity: severitySelect.value })}`; } },
           h('input', { id: 'alertSearch', type: 'search', name: 'q', placeholder: 'Search alerts (product, ingredient, NAFDAC no.)', value: search, autocomplete: 'off' }),
           h('select', { id: 'alertStatus', name: 'status' },
             h('option', { value: 'active', selected: status === 'active' }, 'Active'),
@@ -694,15 +732,20 @@ const ICON = {
     try {
       const search = params.get('q') || '';
       const ingredient = params.get('ingredient');
-      const q = new URLSearchParams({ limit: '50' });
-      if (search) q.set('search', search);
-      if (ingredient) q.set('ingredient', ingredient);
       
       // Load ingredients for the sidebar
-      const [{ data: ingredients }, { data: labels }] = await Promise.all([
-        api('/api/clinical-library/ingredients?limit=200'),
-        api(`/api/clinical-library?${q}`)
+      const [{ data: ingredients }] = await Promise.all([
+        api('/api/clinical/ingredients?limit=200'),
       ]);
+      
+      let labels = [];
+      if (ingredient) {
+        const res = await api(`/api/clinical/ingredient/${encodeURIComponent(ingredient)}`);
+        labels = res.data || [];
+      } else if (search) {
+        const res = await api(`/api/clinical/ingredients?search=${encodeURIComponent(search)}&limit=50`);
+        labels = res.data || [];
+      }
 
       const CATEGORIES = [
         { key: 'indications', label: 'Indications & Uses', icon: '📋', desc: 'What the medicine is used for' },
@@ -726,6 +769,19 @@ const ICON = {
 
       function renderLabelCard(label) {
         const hasContent = Object.values(label.sections || {}).some(v => v && v.trim());
+        const media = label.media || [];
+        const mediaHtml = media.length ? h('div', { class: 'clinical-media' },
+          h('h4', null, 'DailyMed Label Images'),
+          h('p', { class: 'hint' }, 'Images are from the DailyMed label (US FDA) and may not represent the exact product packaging available in Nigeria.'),
+          h('div', { class: 'media-gallery' },
+            media.map(m => h('figure', { class: 'media-item' },
+              h('a', { href: m.url, target: '_blank', rel: 'noopener noreferrer', class: 'media-link', 'aria-label': `View ${m.name || 'DailyMed image'} full size` },
+                h('img', { src: m.url, alt: m.name || 'DailyMed label image', loading: 'lazy', width: '200', height: '200' })),
+              h('figcaption', null, m.name ? h('span', null, m.name) : null, m.source && h('a', { href: m.source, target: '_blank', rel: 'noopener noreferrer', class: 'media-source' }, 'View on DailyMed'))
+            ))
+          )
+        ) : null;
+        
         return h('article', { class: 'clinical-card' },
           h('div', { class: 'clinical-card-head' },
             h('h3', null, label.title || label.ingredient_label || label.ingredient_key),
@@ -734,6 +790,7 @@ const ICON = {
               label.effective_date && h('span', { class: 'meta' }, `Updated ${formatDate(label.effective_date)}`),
               label.source && h('span', { class: 'meta' }, `Source: ${label.source}`)
             )),
+          mediaHtml,
           h('div', { class: 'clinical-card-body' },
             CATEGORIES.map((cat) => {
               const content = label.sections?.[cat.key];
@@ -755,7 +812,7 @@ const ICON = {
           h('aside', { class: 'clinical-sidebar' },
             h('h2', null, 'Clinical Library'),
             h('p', { class: 'hint' }, 'US FDA drug label information for active ingredients in the Kemist database.'),
-            h('form', { class: 'search', onsubmit: (e) => { e.preventDefault(); location.hash = `#/clinical?${new URLSearchParams({ q: searchInput.value })}`; } },
+            h('form', { class: 'search', onsubmit: (e) => { e.preventDefault(); const q = document.getElementById('clinicalSearch').value; location.hash = `#/clinical?${new URLSearchParams({ q })}`; } },
               h('input', { id: 'clinicalSearch', type: 'search', name: 'q', placeholder: 'Search ingredients, indications...', value: search, autocomplete: 'off' }),
               h('button', { class: 'btn primary', type: 'submit' }, icon('search'))),
             h('h3', null, 'Browse by Ingredient'),
@@ -763,7 +820,7 @@ const ICON = {
               class: 'ingredient-btn' + (ingredient === ing.ingredient_key ? ' active' : ''),
               type: 'button',
               onclick: () => { location.hash = `#/clinical?${new URLSearchParams({ ingredient: ing.ingredient_key })}`; }
-            }, h('span', { class: 'ingredient-name' }, ing.ingredient_label || ing.ingredient_key), h('span', { class: 'ingredient-count' }, `${ing.count} label${ing.count !== 1 ? 's' : ''}`)))),
+            }, h('span', { class: 'ingredient-name' }, ing.label || ing.ingredient_key), h('span', { class: 'ingredient-count' }, `${ing.labels} label${ing.labels !== 1 ? 's' : ''}`)))),
             h('div', { class: 'callout', style: 'margin-top:16px' },
               h('strong', null, 'Important: '),
               'This is US FDA labeling data (openFDA/DailyMed). It may differ from NAFDAC-approved information for Nigerian products. Always consult a pharmacist or doctor.'
@@ -787,159 +844,323 @@ const ICON = {
   async function AIAssistantView(params) {
     const page = h('div', { class: 'page ai-page' });
     view.append(page);
-    
-    const STORAGE_KEY = 'kemist-ai-session';
-    let sessionId = localStorage.getItem(STORAGE_KEY) || crypto.randomUUID();
-    localStorage.setItem(STORAGE_KEY, sessionId);
-    
-    let history = [];
+
+    const STORAGE_KEY = 'kemist-ai-chats';
+    let chats = [];
+    let currentChatId = null;
     let isLoading = false;
-    
-    const chatContainer = h('div', { class: 'ai-chat-container' });
-    const inputArea = h('div', { class: 'ai-input-area' },
-      h('form', { class: 'ai-form', onsubmit: sendMessage },
-        h('textarea', { 
-          id: 'aiInput', 
-          placeholder: 'Ask me about medicines, ingredients, side effects, interactions...', 
-          rows: 3,
-          'aria-label': 'Message',
-          disabled: true
-        }),
-        h('div', { class: 'ai-form-actions' },
-          h('button', { class: 'btn primary', type: 'submit', id: 'aiSendBtn', disabled: true }, icon('route'), 'Send'),
-          h('button', { class: 'btn', type: 'button', onclick: clearChat }, 'New Chat')
-        )
-      ),
-      h('p', { class: 'hint ai-disclaimer' }, 'This AI provides information from NAFDAC records, US FDA labels, and safety alerts. It is not medical advice. Consult a healthcare professional for personal decisions.')
-    );
-    
-    page.append(
-      h('a', { class: 'back', href: '#/check' }, icon('back'), 'Back to Check'),
-      h('h1', null, 'Kemist AI Assistant'),
-      h('p', { class: 'lead' }, 'Ask questions about medicines, ingredients, dosages, side effects, and safety information.'),
-      chatContainer,
-      inputArea
-    );
-    
-    // Load history
-    await loadHistory();
-    
-    // Enable input after history loads
-    const input = $('#aiInput');
-    const sendBtn = $('#aiSendBtn');
-    input.disabled = false;
-    sendBtn.disabled = false;
-    input.focus();
-    
-    async function loadHistory() {
+
+    // Load all chats from localStorage
+    function loadChats() {
       try {
-        const { data } = await api(`/api/ai/history/${sessionId}`);
-        history = (data || []).flatMap(c => [
-          { role: 'user', content: c.user_message },
-          { role: 'assistant', content: c.assistant_message }
-        ]);
-        renderMessages();
-      } catch (e) {
-        console.warn('Failed to load AI history:', e.message);
+        const stored = localStorage.getItem(STORAGE_KEY);
+        chats = stored ? JSON.parse(stored) : [];
+      } catch {
+        chats = [];
       }
     }
-    
-    async function sendMessage(e) {
-      e.preventDefault();
-      if (isLoading) return;
-      
-      const text = input.value.trim();
-      if (!text) return;
-      
+
+    function saveChats() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
+    }
+
+    function createNewChat() {
+      const id = crypto.randomUUID();
+      const chat = {
+        id,
+        title: 'New Chat',
+        messages: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      chats.unshift(chat);
+      saveChats();
+      return chat;
+    }
+
+    function getCurrentChat() {
+      return chats.find(c => c.id === currentChatId);
+    }
+
+    function updateChatTitle(chat) {
+      if (chat.messages.length > 0) {
+        const firstUserMsg = chat.messages.find(m => m.role === 'user');
+        if (firstUserMsg) {
+          chat.title = firstUserMsg.content.slice(0, 50) + (firstUserMsg.content.length > 50 ? '…' : '');
+        }
+      }
+      chat.updatedAt = Date.now();
+      saveChats();
+      renderSidebar();
+    }
+
+    function addMessage(chat, role, content, sources) {
+      chat.messages.push({ role, content, sources, timestamp: Date.now() });
+      updateChatTitle(chat);
+    }
+
+    function deleteChat(chatId) {
+      chats = chats.filter(c => c.id !== chatId);
+      saveChats();
+      if (currentChatId === chatId) {
+        currentChatId = null;
+      }
+      renderSidebar();
+      renderChat();
+    }
+
+    function clearAllChats() {
+      if (confirm('Clear all chat history? This cannot be undone.')) {
+        chats = [];
+        currentChatId = null;
+        localStorage.removeItem(STORAGE_KEY);
+        renderSidebar();
+        renderChat();
+      }
+    }
+
+    // Initialize
+    loadChats();
+    if (chats.length === 0) {
+      const chat = createNewChat();
+      currentChatId = chat.id;
+    } else if (!currentChatId || !getCurrentChat()) {
+      currentChatId = chats[0].id;
+    }
+
+    // --- Render functions ---
+    const sidebar = h('div', { class: 'ai-sidebar' });
+    const chatArea = h('div', { class: 'ai-chat-area' });
+
+    function renderSidebar() {
+      const newChatBtn = h('button', { class: 'ai-new-chat-btn', onclick: () => {
+        const chat = createNewChat();
+        currentChatId = chat.id;
+        renderSidebar();
+        renderChat();
+      }}, icon('send'), 'New Chat');
+
+      const chatList = h('div', { class: 'ai-chat-list' },
+        chats.map(chat => h('div', { 
+          class: `ai-chat-item ${chat.id === currentChatId ? 'active' : ''}`,
+          onclick: () => { currentChatId = chat.id; renderSidebar(); renderChat(); }
+        },
+          h('div', { class: 'ai-chat-title' }, chat.title || 'New Chat'),
+          h('time', { class: 'ai-chat-time' }, new Date(chat.updatedAt).toLocaleString('en-NG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })),
+          h('button', { class: 'ai-chat-delete', onclick: (e) => { e.stopPropagation(); deleteChat(chat.id); }}, icon('cross'))
+        ))
+      );
+
+      const clearBtn = chats.length > 0 ? h('button', { class: 'ai-clear-all-btn', onclick: clearAllChats }, icon('cross'), 'Clear All Chats') : null;
+
+      const storageNotice = h('div', { class: 'ai-storage-notice' },
+        h('svg', { width: '16', height: '16', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2', ariaHidden: 'true' }, 
+          h('path', { d: 'M12 22c5.5 0 10-4.5 10-10S17.5 2 12 2 2 6.5 2 12s4.5 10 10 10z' }),
+          h('path', { d: 'M12 6v6l4 2' })
+        ),
+        h('span', null, 'Chats stored locally in your browser. Not saved to our servers.')
+      );
+
+      sidebar.replaceChildren(newChatBtn, chatList, clearBtn, storageNotice);
+    }
+
+    function renderChat() {
+      const chat = getCurrentChat();
+      if (!chat) {
+        chatArea.replaceChildren(
+          h('div', { class: 'ai-empty-state' },
+            h('div', { class: 'ai-empty-icon' }, icon('ai')),
+            h('h2', null, 'How can I help?'),
+            h('p', null, 'Ask me about medicines, ingredients, dosages, side effects, interactions, or NAFDAC safety alerts.'),
+            h('div', { class: 'ai-suggested-prompts' },
+              ['What is paracetamol used for?', 'Show me NAFDAC alerts for antibiotics', 'Drug interactions with warfarin', 'Dosage for amoxicillin 500mg'].map(p => 
+                h('button', { class: 'ai-prompt-btn', onclick: () => sendMessage(p) }, p)
+              )
+            ),
+            h('p', { class: 'ai-disclaimer' }, 'This AI provides information from NAFDAC records, US FDA labels, and safety alerts. It is not medical advice. Consult a healthcare professional for personal decisions.')
+          )
+        );
+        return;
+      }
+
+      const messagesContainer = h('div', { class: 'ai-messages', id: 'aiMessages' },
+        chat.messages.map((msg, idx) => renderMessage(msg, idx))
+      );
+
+      const inputArea = h('div', { class: 'ai-input-area' },
+        h('form', { class: 'ai-form', onsubmit: (e) => { e.preventDefault(); sendMessage(input.value.trim()); } },
+          h('textarea', { 
+            id: 'aiInput', 
+            placeholder: 'Ask about medicines, ingredients, dosages, side effects...', 
+            rows: 1,
+            'aria-label': 'Message',
+            disabled: isLoading
+          }),
+          h('div', { class: 'ai-form-actions' },
+            h('button', { class: 'btn primary', type: 'submit', id: 'aiSendBtn', disabled: isLoading }, icon('send')),
+            h('button', { class: 'btn', type: 'button', onclick: () => {
+              const chat = createNewChat();
+              currentChatId = chat.id;
+              renderSidebar();
+              renderChat();
+            }}, icon('send'), 'New')
+          )
+        ),
+        h('p', { class: 'ai-disclaimer' }, 'AI responses are generated from NAFDAC, openFDA, and safety alert data. Not medical advice.')
+      );
+
+      chatArea.replaceChildren(messagesContainer, inputArea);
+
+      // Auto-resize textarea
+      const input = $('#aiInput');
+      input.addEventListener('input', () => {
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 150) + 'px';
+      });
+      input.focus();
+
+      // Scroll to bottom
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function renderMessage(msg, idx) {
+      const isUser = msg.role === 'user';
+      const bubble = h('div', { class: `ai-message ${isUser ? 'user' : 'assistant'}` },
+        h('div', { class: 'ai-message-avatar' },
+          isUser 
+            ? h('svg', { width: '20', height: '20', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2' }, h('path', { d: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2' }), h('circle', { cx: '12', cy: '7', r: '4' }))
+            : h('svg', { width: '20', height: '20', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2' }, h('path', { d: 'M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z' }), h('path', { d: 'M12 6v6l4 2' }), h('path', { d: 'M9 14h6' }))
+        ),
+        h('div', { class: 'ai-message-content' },
+          h('div', { class: 'ai-message-text', html: isUser ? escapeHtml(msg.content) : formatMessage(msg.content) }),
+          msg.sources && msg.sources.length ? h('div', { class: 'ai-sources' },
+            h('span', { class: 'ai-sources-label' }, 'Sources: '),
+            msg.sources.map((s, i) => h('span', { class: 'ai-source-tag', key: i }, s.source + (s.title ? ': ' + s.title : '')))
+          ) : null
+        )
+      );
+      return bubble;
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text)
+        .replace(/&/g, '&')
+        .replace(/</g, '<')
+        .replace(/>/g, '>')
+        .replace(/"/g, '"')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Markdown formatting for AI responses
+    function formatMessage(text) {
+      if (!text) return '';
+      return String(text)
+        .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+        .replace(/^###\s+(.+)$/gm, '<h3>$1</h3>')
+        .replace(/^##\s+(.+)$/gm, '<h2>$1</h2>')
+        .replace(/^#\s+(.+)$/gm, '<h1>$1</h1>')
+        .replace(/^\s*-\s+/gm, '<li>')
+        .replace(/^\s*\d+\.\s+/gm, '<li>')
+        .replace(/(<li>.*<\/li>)/g, '<ul>$1</ul>')
+        .replace(/<\/ul>\s*<ul>/g, '')
+        .replace(/\n{2,}/g, '</p><p>')
+        .replace(/\n/g, '<br>')
+        .replace(/^(.+)$/gm, '<p>$1</p>')
+        .replace(/<p><\/p>/g, '')
+        .replace(/<p>(<h[1-3]>)/g, '$1')
+        .replace(/(<\/h[1-3]>)<\/p>/g, '$1')
+        .replace(/<p>(<pre>)/g, '$1')
+        .replace(/(<\/pre>)<\/p>/g, '$1')
+        .replace(/<p>(<ul>)/g, '$1')
+        .replace(/(<\/ul>)<\/p>/g, '$1')
+        .replace(/<p>(<blockquote>)/g, '$1')
+        .replace(/(<\/blockquote>)<\/p>/g, '$1')
+        .replace(/<p>(<table>)/g, '$1')
+        .replace(/(<\/table>)<\/p>/g, '$1')
+        .replace(/<p>(<hr>)/g, '$1')
+        .replace(/^\s*>\s+(.+)$/gm, '<blockquote>$1</blockquote>')
+        .replace(/---/g, '<hr>');
+    }
+
+    async function sendMessage(text) {
+      if (isLoading || !text) return;
+
+      let chat = getCurrentChat();
+      if (!chat) {
+        chat = createNewChat();
+        currentChatId = chat.id;
+      }
+
       isLoading = true;
-      input.disabled = true;
-      sendBtn.disabled = true;
-      
-      // Add user message to UI immediately
-      addMessage('user', text);
+      addMessage(chat, 'user', text);
+      renderChat();
+
+      const input = $('#aiInput');
       input.value = '';
       input.style.height = 'auto';
-      
+      input.disabled = true;
+      $('#aiSendBtn').disabled = true;
+
       // Show typing indicator
-      const typingId = addTypingIndicator();
-      
-      try {
-        const res = await api('/api/ai/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text, sessionId, history: history.slice(-12) })
-        });
-        
-        removeTypingIndicator(typingId);
-        addMessage('assistant', res.response, res.sources);
-        
-        // Update history
-        history.push({ role: 'user', content: text });
-        history.push({ role: 'assistant', content: res.response });
-      } catch (err) {
-        removeTypingIndicator(typingId);
-        addMessage('assistant', `Sorry, I encountered an error: ${err.message}. Please try again.`);
-      } finally {
-        isLoading = false;
-        input.disabled = false;
-        sendBtn.disabled = false;
-        input.focus();
-      }
-    }
-    
-    function addMessage(role, content, sources) {
-      const msg = h('div', { class: `ai-message ${role}` },
-        h('div', { class: 'ai-message-content' }, content),
-        sources && sources.length ? h('div', { class: 'ai-sources' },
-          h('strong', null, 'Sources: '),
-          sources.map((s, i) => h('span', { class: 'ai-source-tag', key: i }, `${s.source}: ${s.title || s.content_type}`))
-        ) : null
-      );
-      chatContainer.append(msg);
-      chatContainer.scrollTop = chatContainer.scrollHeight;
-      return msg;
-    }
-    
-    function addTypingIndicator() {
-      const id = 'typing-' + Date.now();
-      const msg = h('div', { class: 'ai-message assistant typing', id },
+      const typingId = 'typing-' + Date.now();
+      const typingEl = h('div', { class: 'ai-message assistant typing', id: typingId },
+        h('div', { class: 'ai-message-avatar' },
+          h('svg', { width: '20', height: '20', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2' }, h('path', { d: 'M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z' }), h('path', { d: 'M12 6v6l4 2' }), h('path', { d: 'M9 14h6' }))
+        ),
         h('div', { class: 'ai-message-content' },
-          h('span', { class: 'typing-dots' }, '⋯')
+          h('div', { class: 'ai-typing' }, h('span'), h('span'), h('span'))
         )
       );
-      chatContainer.append(msg);
-      chatContainer.scrollTop = chatContainer.scrollHeight;
-      return id;
-    }
-    
-    function removeTypingIndicator(id) {
-      const el = document.getElementById(id);
-      if (el) el.remove();
-    }
-    
-    function renderMessages() {
-      chatContainer.replaceChildren();
-      for (const msg of history) {
-        addMessage(msg.role, msg.content);
-      }
-      chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-    
-    function clearChat() {
-      if (confirm('Start a new chat? This will clear the current conversation.')) {
-        sessionId = crypto.randomUUID();
-        localStorage.setItem(STORAGE_KEY, sessionId);
-        history = [];
-        chatContainer.replaceChildren();
+      $('#aiMessages').append(typingEl);
+      $('#aiMessages').scrollTop = $('#aiMessages').scrollHeight;
+
+      try {
+        // Build history for context (last 12 messages)
+        const history = chat.messages.slice(-12).map(m => ({ role: m.role, content: m.content }));
+        
+        const res = await api('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text, history })
+        });
+
+        document.getElementById(typingId)?.remove();
+        addMessage(chat, 'assistant', res.response, res.sources);
+        renderChat();
+      } catch (err) {
+        document.getElementById(typingId)?.remove();
+        addMessage(chat, 'assistant', `Sorry, I encountered an error: ${err.message}. Please try again.`);
+        renderChat();
+      } finally {
+        isLoading = false;
+        const input = $('#aiInput');
+        input.disabled = false;
+        $('#aiSendBtn').disabled = false;
         input.focus();
       }
     }
-    
-    // Auto-resize textarea
-    input.addEventListener('input', () => {
-      input.style.height = 'auto';
-      input.style.height = Math.min(input.scrollHeight, 150) + 'px';
-    });
+
+    // Initial render
+    page.append(
+      h('div', { class: 'ai-layout' },
+        h('aside', { class: 'ai-sidebar-wrap' }, sidebar),
+        h('main', { class: 'ai-main' },
+          h('header', { class: 'ai-header' },
+            h('a', { class: 'back', href: '#/dashboard' }, icon('back')),
+            h('h1', null, 'Kemist AI Assistant'),
+            h('p', { class: 'lead' }, 'Ask about medicines, safety alerts, clinical info, and more.')
+          ),
+          chatArea
+        )
+      )
+    );
+
+    renderSidebar();
+    renderChat();
   }
 
   // ---------- Nearby / map ----------
@@ -995,13 +1216,29 @@ const ICON = {
       const tileAttr = (state.meta && state.meta.tile_attribution) || '\u00a9 OpenStreetMap contributors';
       s.map = L.map('map', { zoomControl: false }).setView([9.08, 8.68], 6);       // all of Nigeria
       L.control.zoom({ position: 'bottomright' }).addTo(s.map);
-      L.tileLayer(tileUrl, { maxZoom: 19, attribution: tileAttr }).addTo(s.map);
+      const tiles = L.tileLayer(tileUrl, { maxZoom: 19, attribution: tileAttr }).addTo(s.map);
       s.layer = L.layerGroup().addTo(s.map);
       s.map.on('moveend', () => {
         if (!s.center || !s.map) return;
         const c = s.map.getCenter();
         areaBtn.hidden = s.map.distance(c, [s.center.lat, s.center.lng]) < 1500;
       });
+      
+      // Track tile load success/failure
+      let ok = 0, bad = 0, warned = false;
+      tiles.on('tileload', () => { ok++; });
+      tiles.on('tileerror', () => {
+        bad++;
+        if (!warned && ok === 0 && bad >= 6) {
+          warned = true;
+          // show this in the map status area and keep it there
+          const msgEl = $('#mapMsg');
+          if (msgEl) {
+            msgEl.textContent = 'The map pictures could not load on this network. The list of places below still works. Try another network, turn off any VPN or ad blocker, or open Kemist in Chrome.';
+          }
+        }
+      });
+      
       s.ready = true;
     }
 
@@ -1160,11 +1397,14 @@ const ICON = {
       
       // Add place search if not already added
       if (!$('#placeSearch')) {
-        const searchWrap = h('div', { class: 'place-search' },
-          h('input', { id: 'placeSearch', type: 'search', placeholder: 'Search for a place (e.g. "Victoria Island, Lagos")', 'aria-label': 'Search for a place', autocomplete: 'off' }),
-          h('button', { class: 'btn small', type: 'button', onclick: () => searchPlace($('#placeSearch').value) }, icon('search'), 'Search'));
-        document.querySelector('.chips:last-of-type').insertAdjacentElement('afterend', searchWrap);
-        $('#placeSearch').addEventListener('keydown', (e) => { if (e.key === 'Enter') searchPlace(e.target.value); });
+        const chipsEl = document.querySelector('.chips:last-of-type');
+        if (chipsEl) {
+          const searchWrap = h('div', { class: 'place-search' },
+            h('input', { id: 'placeSearch', type: 'search', placeholder: 'Search for a place (e.g. "Victoria Island, Lagos")', 'aria-label': 'Search for a place', autocomplete: 'off' }),
+            h('button', { class: 'btn small', type: 'button', onclick: () => searchPlace($('#placeSearch').value) }, icon('search'), 'Search'));
+          chipsEl.insertAdjacentElement('afterend', searchWrap);
+          $('#placeSearch').addEventListener('keydown', (e) => { if (e.key === 'Enter') searchPlace(e.target.value); });
+        }
       }
       
       // Remove retry button if it exists

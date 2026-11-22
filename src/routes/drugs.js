@@ -2,17 +2,29 @@
 const router = require('express').Router();
 const store = require('../db');
 const { nrnKey, clampInt, cleanText, withVerdict } = require('../lib/helpers');
+const alertsDb = require('../db/alerts');
 
+const alertView = (a) => ({ id: a.id, alert_no: a.alert_no, title: a.title, alert_type: a.alert_type, source_url: a.source_url, published_at: a.published_at });
+const ALERT_NOTE = 'NAFDAC has published an alert that mentions this number. Read it and compare it with your pack: it may describe a counterfeit that copies this number.';
+const activeFirst = (rows) => [...rows].sort((a, b) => Number(/inactive|cancel|suspend|withdraw|expired/i.test(a.status || '')) - Number(/inactive|cancel|suspend|withdraw|expired/i.test(b.status || '')));
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SAFETY_NOTE =
   'This confirms a registration record only. It cannot prove that the pack in your hand is genuine, because fake packs can copy real numbers.';
 
-/** Sort key for status: active registrations sort before inactive ones. */
-function activeRank(status) {
-  const s = String(status || '').toLowerCase();
-  if (/(active|registered|valid)/.test(s)) return 3;
-  if (/(inactive|cancel|suspend|withdraw|revok|expired)/.test(s)) return 1;
-  return 2;
+function attachImages(rows) {
+  if (!rows.length) return Promise.resolve(rows);
+  const ids = rows.map(r => r.id);
+  return store.getDrugImages(ids).then(images => {
+    const byDrug = new Map();
+    for (const img of images) {
+      if (!byDrug.has(img.drug_id)) byDrug.set(img.drug_id, []);
+      byDrug.get(img.drug_id).push({ url: `${process.env.SUPABASE_URL}/storage/v1/object/public/drug-images/${img.storage_path}`, kind: img.kind, credit: img.credit });
+    }
+    return rows.map(r => {
+      const imgs = byDrug.get(r.id) || [];
+      return { ...r, image: imgs[0] || null, images: imgs };
+    });
+  });
 }
 
 // GET /api/drugs?q=paracetamol  (name, ingredient, company or NAFDAC number)
@@ -23,7 +35,8 @@ router.get('/', async (req, res, next) => {
     const limit = clampInt(req.query.limit, 1, 50, 20);
     const offset = clampInt(req.query.offset, 0, 5000, 0);
     const rows = await store.searchDrugs(q, limit, offset);
-    res.json({ query: q, count: rows.length, data: rows.map(withVerdict) });
+    const withImages = await attachImages(rows);
+    res.json({ query: q, count: withImages.length, data: withImages.map(withVerdict) });
   } catch (e) { next(e); }
 });
 
@@ -33,14 +46,16 @@ router.get('/verify', async (req, res, next) => {
     const nrn = cleanText(String(req.query.nrn || ''), 40);
     const key = nrnKey(nrn);
     if (key.length < 3) return res.status(400).json({ error: 'Enter the NAFDAC registration number printed on the pack.' });
-    const rows = await store.findByNrn(key);
-    // Active registrations first: a renewal usually keeps the same number as the older record.
-    rows.sort((a, b) => (activeRank(b.status) - activeRank(a.status)) || a.product_name.localeCompare(b.product_name));
+    const rows = activeFirst(await store.findByNrn(key));
     const stats = await store.stats();
+    const found_alerts = await alertsDb.byNrnKey(key).catch(() => []);
+    const withImages = await attachImages(rows);
     res.json({
       nrn,
       found: rows.length > 0,
-      matches: rows.map(withVerdict),
+      matches: withImages.map(withVerdict),
+      alerts: found_alerts.map(alertView),
+      alert_note: found_alerts.length ? ALERT_NOTE : null,
       last_synced: stats.last_synced,
       note: SAFETY_NOTE,
       not_found_hint: rows.length ? null :
@@ -55,7 +70,9 @@ router.get('/:id', async (req, res, next) => {
     if (!UUID.test(req.params.id)) return res.status(400).json({ error: 'Invalid medicine ID.' });
     const row = await store.getDrug(req.params.id);
     if (!row) return res.status(404).json({ error: 'Medicine record not found.' });
-    res.json({ data: withVerdict(row), note: SAFETY_NOTE });
+    const found_alerts = await alertsDb.byNrnKey(nrnKey(row.nrn)).catch(() => []);
+    const withImages = await attachImages([row]);
+    res.json({ data: withVerdict(withImages[0]), note: SAFETY_NOTE, alerts: found_alerts.map(alertView), alert_note: found_alerts.length ? ALERT_NOTE : null });
   } catch (e) { next(e); }
 });
 
@@ -64,7 +81,8 @@ router.get('/:id/similar', async (req, res, next) => {
   try {
     if (!UUID.test(req.params.id)) return res.status(400).json({ error: 'Invalid medicine ID.' });
     const rows = await store.similarDrugs(req.params.id, clampInt(req.query.limit, 1, 60, 30));
-    res.json({ count: rows.length, data: rows.map(withVerdict) });
+    const withImages = await attachImages(rows);
+    res.json({ count: withImages.length, data: withImages.map(withVerdict) });
   } catch (e) { next(e); }
 });
 

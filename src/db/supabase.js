@@ -34,6 +34,18 @@ module.exports = {
     return data;
   },
 
+  async getDrugImages(drugIds) {
+    if (!drugIds.length) return [];
+    const { data, error } = await db.from('drug_images').select('drug_id, storage_path, kind, credit')
+      .in('drug_id', drugIds).eq('status', 'approved');
+    // If table doesn't exist (PGRST205), return empty array gracefully
+    if (error) {
+      if (error.code === 'PGRST205') return [];
+      fail(error, 'getDrugImages');
+    }
+    return data || [];
+  },
+
   async similarDrugs(id, limit = 30) {
     const { data, error } = await db.rpc('similar_drugs', { p_id: id, lim: limit });
     if (error) fail(error, 'similar_drugs');
@@ -79,14 +91,5 @@ module.exports = {
     const { data, error } = await db.from('reports').insert(report).select('id').single();
     if (error) fail(error, 'insert report');
     return { id: data.id };
-  },
-
-  async upsertEmbeddings(rows) {
-    if (!rows.length) return;
-    for (let i = 0; i < rows.length; i += 100) {
-      const chunk = rows.slice(i, i + 100).map((r) => ({ ...r, updated_at: new Date().toISOString() }));
-      const { error } = await db.from('document_embeddings').upsert(chunk, { onConflict: 'source,source_id,content_type' });
-      if (error) fail(error, 'upsert embeddings');
-    }
   },
 };

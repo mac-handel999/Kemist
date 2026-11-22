@@ -2,29 +2,28 @@
 const router = require('express').Router();
 const store = require('../db');
 
-// Tile provider. If GEOAPIFY_API_KEY is set the tile URL is composed server-side so the key
-// never reaches the browser; otherwise MAP_TILE_URL/MAP_TILE_ATTRIBUTION take over, defaulting
-// to OpenStreetMap.
-const GEOAPIFY_API_KEY = process.env.GEOAPIFY_API_KEY || '';
-const MAP_TILE_URL = GEOAPIFY_API_KEY
-  ? `https://maps.geoapify.com/v1/tile/carto/{z}/{x}/{y}.png?apiKey=${GEOAPIFY_API_KEY}`
-  : (process.env.MAP_TILE_URL || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png');
-const MAP_TILE_ATTRIBUTION = process.env.MAP_TILE_ATTRIBUTION || '\u00a9 OpenStreetMap contributors, \u00a9 Geoapify';
+function tileConfig() {
+  const geo = process.env.GEOAPIFY_API_KEY;
+  const url = process.env.MAP_TILE_URL
+    || (geo ? `https://maps.geoapify.com/v1/tile/osm-bright/{z}/{x}/{y}.png?apiKey=${geo}` : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png');
+  const attribution = process.env.MAP_TILE_ATTRIBUTION
+    || (!process.env.MAP_TILE_URL && geo ? 'Powered by <a href="https://www.geoapify.com/" target="_blank" rel="noopener">Geoapify</a> | &copy; OpenStreetMap contributors' : '&copy; OpenStreetMap contributors');
+  return { url, attribution };
+}
 
 router.get('/', async (_req, res, next) => {
   try {
+    const tiles = tileConfig();
     res.json({
       ...(await store.stats()),
-      tile_url: MAP_TILE_URL,
-      tile_attribution: MAP_TILE_ATTRIBUTION,
       source: 'NAFDAC Greenbook (registration data)',
       notice: 'A registration record cannot prove that a physical pack is genuine.',
+      tile_url: tiles.url,
+      tile_attribution: tiles.attribution,
+      ai: Boolean(process.env.GROQ_API_KEY || process.env.GROQ_API_KEYS),
     });
-  } catch (e) {
-    // Surface the underlying error in the logs so "500 on /api/meta" is diagnosable without
-    // digging through the Supabase dashboard.
-    console.error('GET /api/meta failed:', e.message);
-    next(e);
-  }
+  } catch (e) { console.error('[meta] database error:', e.message); next(e); }
 });
+
 module.exports = router;
+module.exports.tileConfig = tileConfig;

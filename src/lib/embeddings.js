@@ -21,6 +21,17 @@ const DIMENSIONS = Number(process.env.EMBEDDING_DIMENSIONS || 1536);
 
 const store = require('../db');
 
+// Track if embeddings are available
+let embeddingsEnabled = Boolean(API_KEY);
+
+function setEmbeddingsEnabled(enabled) {
+  embeddingsEnabled = enabled;
+}
+
+function areEmbeddingsEnabled() {
+  return embeddingsEnabled;
+}
+
 /**
  * Generate embeddings for a list of texts.
  * @param {string[]} texts - Texts to embed
@@ -28,6 +39,10 @@ const store = require('../db');
  */
 async function embed(texts) {
   if (!texts.length) return [];
+
+  if (!embeddingsEnabled) {
+    throw new Error('Embeddings not configured. Set EMBEDDING_API_KEY to enable RAG.');
+  }
 
   // Filter empty texts
   const validTexts = texts.map(t => (t && t.trim() ? t.trim() : ' '));
@@ -270,6 +285,11 @@ async function searchDocuments(query, options = {}) {
     count = 10,
   } = options;
   
+  if (!embeddingsEnabled) {
+    console.warn('[embeddings] RAG search skipped - embeddings not configured');
+    return [];
+  }
+
   const queryEmbedding = await embedOne(query);
   
   if (store.mode === 'supabase') {
@@ -366,4 +386,6 @@ module.exports = {
   indexAlert,
   searchDocuments,
   reindexAll,
+  setEmbeddingsEnabled,
+  areEmbeddingsEnabled,
 };

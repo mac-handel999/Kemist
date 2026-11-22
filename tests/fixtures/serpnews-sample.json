@@ -1,0 +1,9 @@
+{
+  "news_results": [
+    { "position": 1, "title": "FIXTURE: NAFDAC warns of fake antimalarial in circulation", "link": "https://example.com/a", "source": { "name": "Fixture Daily", "authors": ["A. Writer"] }, "snippet": "Fixture snippet one.", "date": "11/12/2026, 09:03 AM, +0100 WAT", "iso_date": "2026-11-12T08:03:00Z" },
+    { "position": 2, "title": "FIXTURE: Pharmacy council announces new licensing rules", "link": "https://example.com/b", "source": { "name": "Fixture Times" }, "iso_date": "2026-11-11T10:00:00Z",
+      "stories": [ { "title": "FIXTURE: Pharmacists react to licensing rules", "link": "https://example.com/c", "source": { "name": "Fixture Post" }, "iso_date": "2026-11-11T12:00:00Z" } ] },
+    { "position": 3, "title": "FIXTURE: duplicate link", "link": "https://example.com/a", "source": { "name": "Fixture Daily" } },
+    { "position": 4, "title": "", "link": "https://example.com/d" }
+  ]
+}

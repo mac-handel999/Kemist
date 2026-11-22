@@ -12,8 +12,6 @@ const KEYS = {
   name:         ['productname', 'name', 'brandname', 'product', 'title'],
   status:       ['registrationstatus', 'status'],
   ingredients:  ['activeingredients', 'activeingredient', 'ingredients', 'ingredient', 'composition'],
-  ingredient_synonym: ['ingredientsynonym', 'ingredient_synonym', 'synonym'],
-  composition:  ['composition', 'compositiondescription', 'composition_details'],
   strength:     ['strength', 'strengths'],
   form:         ['dosageform', 'form', 'productdescription'],
   route:        ['route', 'routeofadministration', 'roa'],
@@ -27,9 +25,8 @@ const KEYS = {
   approval:     ['approvedat', 'approvaldate', 'dateapproved', 'approved'],
   expiry:       ['expiresat', 'expirydate', 'expirationdate', 'expiry', 'expires'],
   smpc:         ['smpclink', 'smpcurl', 'smpc'],
-  url:          ['detailurl', 'detailpageurl', 'productpageurl', 'productpage', 'producturl', 'url', 'link'],
+  url:          ['detailurl', 'productpageurl', 'productpage', 'producturl', 'url', 'link'],
   id:           ['productid', 'sourcerecordid', 'recordid', 'id'],
-  data_quality_note: ['dataqualitynote', 'data_quality_note', 'qualitynote', 'reviewnote', 'note'],
 };
 
 const squash = (k) => String(k).toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -40,21 +37,6 @@ function asText(v) {
   if (typeof v === 'object') return asText(v.name ?? v.title ?? v.value ?? null);
   const s = String(v).replace(/\s+/g, ' ').trim();
   return s && !/^(n\/?a|null|undefined|-)$/i.test(s) ? s : null;
-}
-
-/** Pull a value out of a nested object by trying several dotted paths, then falling back to flat keys. */
-function pickNested(raw, paths, keyList) {
-  for (const p of paths) {
-    const parts = p.split('.');
-    let cur = raw;
-    let ok = true;
-    for (const part of parts) {
-      if (cur && typeof cur === 'object' && part in cur) cur = cur[part];
-      else { ok = false; break; }
-    }
-    if (ok) { const t = asText(cur); if (t) return t; }
-  }
-  return null;
 }
 
 function toDate(v) {
@@ -90,6 +72,8 @@ function normalizeNafdacRecord(raw, { source = 'NAFDAC Greenbook' } = {}) {
     return null;
   };
 
+  const nested = (obj, key) => (obj && typeof obj === 'object' && !Array.isArray(obj) ? asText(obj[key]) : null);
+
   const nrn = pick('nrn');
   const productName = pick('name');
   if (!productName) return { ok: false, reason: 'missing product name' };
@@ -100,15 +84,11 @@ function normalizeNafdacRecord(raw, { source = 'NAFDAC Greenbook' } = {}) {
   const dosageForm = pick('form');
   const applicant = pick('applicant');
   const sourceUrl = pick('url');
-  // Nested fields: the source nests these inside objects, e.g. manufacturer.country.
-  const manufacturerCountry = pickNested(raw, ['manufacturer.country', 'manufacturerCountry', 'country'], KEYS.country);
 
   // A stable ID from the source. Never use the row position: it changes between runs and would create duplicates.
   const sourceRecordId =
     pick('id') || sourceUrl ||
     `h:${sha256([nrn, productName, strength, dosageForm, applicant].join('|')).slice(0, 24)}`;
-
-  const detailUrl = pick('url'); // detail URL from the source
 
   return {
     ok: true,
@@ -118,8 +98,6 @@ function normalizeNafdacRecord(raw, { source = 'NAFDAC Greenbook' } = {}) {
       nrn,
       product_name: productName,
       active_ingredients: normalizeIngredients(ingredientsRaw),
-      ingredient_synonym: pick('ingredient_synonym'),
-      composition: pick('composition'),
       strength,
       dosage_form: dosageForm,
       route: pick('route'),
@@ -129,13 +107,11 @@ function normalizeNafdacRecord(raw, { source = 'NAFDAC Greenbook' } = {}) {
       pack_size: pick('pack'),
       applicant,
       manufacturer: pick('manufacturer'),
-      manufacturer_country: manufacturerCountry,
+      manufacturer_country: pick('country') || nested(flat.get('manufacturer'), 'country'),
       approval_date: toDate(pick('approval')),
       expiry_date: toDate(pick('expiry')),
       status: pick('status') || 'Unknown',
-      data_quality_note: pick('data_quality_note'),
       smpc_url: pick('smpc'),
-      detail_url: detailUrl,
       source_url: sourceUrl,
       fetched_at: new Date().toISOString(),
     },

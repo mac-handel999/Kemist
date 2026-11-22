@@ -13,7 +13,7 @@ require('dotenv').config();
 const fs = require('node:fs');
 const { normalizeNafdacRecord } = require('../src/lib/nafdac');
 const { sha256 } = require('../src/lib/helpers');
-const apiKeys = require('../src/lib/api-keys');
+const { KeyPool, parseKeys } = require('../src/lib/keypool');
 
 const API = 'https://api.apify.com/v2';
 const args = process.argv.slice(2);
@@ -21,42 +21,20 @@ const flag = (n) => args.includes(`--${n}`);
 const opt = (n) => { const i = args.indexOf(`--${n}`); return i >= 0 ? args[i + 1] : null; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function apify(pathname, { method = 'GET', body, params = {} } = {}) {
-  const { key, credentialId } = await apiKeys.getKey('apify');
-  const start = Date.now();
-  const qs = new URLSearchParams({ token: key, ...params });
-  try {
-    const res = await fetch(`${API}${pathname}?${qs}`, {
-      method,
-      headers: body ? { 'Content-Type': 'application/json' } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(120000),
-    });
-    const latency = Date.now() - start;
-    if (!res.ok) {
-      const errText = (await res.text()).slice(0, 300);
-      await apiKeys.recordResult(credentialId, {
-        success: false, statusCode: res.status, errorMessage: errText, latencyMs: latency,
-        requestMetadata: { endpoint: pathname, method }
-      });
-      throw new Error(`Apify ${method} ${pathname} -> ${res.status} ${errText}`);
-    }
-    const data = await res.json();
-    await apiKeys.recordResult(credentialId, {
-      success: true, statusCode: res.status, latencyMs: latency,
-      requestMetadata: { endpoint: pathname, method }
-    });
-    return data;
-  } catch (e) {
-    const latency = Date.now() - start;
-    if (!e.message.includes('Apify')) {
-      await apiKeys.recordResult(credentialId, {
-        success: false, statusCode: 0, errorMessage: e.message, latencyMs: latency,
-        requestMetadata: { endpoint: pathname, method }
-      });
-    }
-    throw e;
-  }
+const tokens = parseKeys(process.env.APIFY_TOKENS, process.env.APIFY_TOKEN);
+const pool = new KeyPool({ provider: 'apify', keys: tokens });          // no call counting: Apify bills by usage, so we fail over on errors
+
+async function apify(pathname, { method = 'GET', body, params = {}, token } = {}) {
+  if (!token) throw new Error('APIFY_TOKEN (or APIFY_TOKENS=a,b) is missing in .env');
+  const qs = new URLSearchParams({ token, ...params });
+  const res = await fetch(`${API}${pathname}?${qs}`, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(120000),
+  });
+  if (!res.ok) { const e = new Error(`Apify ${method} ${pathname} -> ${res.status} ${(await res.text()).slice(0, 300)}`); e.status = res.status; throw e; }
+  return res.json();
 }
 
 async function runActor() {
@@ -66,39 +44,27 @@ async function runActor() {
   if (process.env.APIFY_INPUT) {
     try { input = JSON.parse(process.env.APIFY_INPUT); } catch { throw new Error('APIFY_INPUT is not valid JSON'); }
   }
-  const started = (await apify(`/acts/${encodeURIComponent(actor)}/runs`, { method: 'POST', body: input })).data;
-  console.log(`Apify run started: ${started.id}`);
-  for (let i = 0; i < 360; i++) {                       // up to 30 minutes
-    const run = (await apify(`/actor-runs/${started.id}`)).data;
-    if (run.status === 'SUCCEEDED') return { runId: run.id, datasetId: run.defaultDatasetId };
-    if (['FAILED', 'ABORTED', 'TIMED-OUT'].includes(run.status)) throw new Error(`Apify run ${run.status}`);
-    await sleep(5000);
-  }
-  throw new Error('Timed out waiting for the Apify run');
+  return pool.run(async (token) => {                                      // a run belongs to one token, so start AND poll with the same one
+    const started = (await apify(`/acts/${encodeURIComponent(actor)}/runs`, { method: 'POST', body: input, token })).data;
+    console.log(`Apify run started: ${started.id}`);
+    for (let i = 0; i < 360; i++) {                                       // up to 30 minutes
+      const run = (await apify(`/actor-runs/${started.id}`, { token })).data;
+      if (run.status === 'SUCCEEDED') return { runId: run.id, datasetId: run.defaultDatasetId, token };
+      if (['FAILED', 'ABORTED', 'TIMED-OUT'].includes(run.status)) throw new Error(`Apify run ${run.status}`);
+      await sleep(5000);
+    }
+    throw new Error('Timed out waiting for the Apify run');
+  });
 }
 
-async function datasetItems(datasetId) {
-  const { key, credentialId } = await apiKeys.getKey('apify');
-  const start = Date.now();
+async function datasetItems(datasetId, token) {
   const all = [];
   for (let offset = 0; ; offset += 1000) {
     const res = await fetch(`${API}/datasets/${datasetId}/items?${new URLSearchParams({
-      token: key, format: 'json', clean: 'true', limit: '1000', offset: String(offset),
+      token, format: 'json', clean: 'true', limit: '1000', offset: String(offset),
     })}`, { signal: AbortSignal.timeout(120000) });
-    const latency = Date.now() - start;
-    if (!res.ok) {
-      const errText = (await res.text()).slice(0, 300);
-      await apiKeys.recordResult(credentialId, {
-        success: false, statusCode: res.status, errorMessage: errText, latencyMs: latency,
-        requestMetadata: { endpoint: 'dataset-items', datasetId }
-      });
-      throw new Error(`Apify dataset -> ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`Apify dataset -> ${res.status}`);
     const page = await res.json();
-    await apiKeys.recordResult(credentialId, {
-      success: true, statusCode: res.status, latencyMs: latency,
-      requestMetadata: { endpoint: 'dataset-items', datasetId }
-    });
     if (!Array.isArray(page)) throw new Error('Apify dataset did not return a JSON array');
     all.push(...page);
     if (page.length < 1000) break;
@@ -108,14 +74,14 @@ async function datasetItems(datasetId) {
 
 async function main() {
   const dry = flag('dry');
-  let items, runId = null, datasetId = opt('dataset');
+  let items, runId = null, datasetId = opt('dataset'), token = tokens[0];
 
   if (opt('file')) {
     items = JSON.parse(fs.readFileSync(opt('file'), 'utf8'));
     if (!Array.isArray(items)) throw new Error('The file must contain a JSON array of records');
   } else {
-    if (!datasetId) ({ runId, datasetId } = await runActor());
-    items = await datasetItems(datasetId);
+    if (!datasetId) ({ runId, datasetId, token } = await runActor());
+    items = await datasetItems(datasetId, token);
   }
   console.log(`Fetched ${items.length} raw records.`);
 

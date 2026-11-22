@@ -15,7 +15,6 @@ const fs = require('node:fs');
 const clinical = require('../src/db/clinical');
 const { canonicalIngredient } = require('../src/lib/ingredients');
 const { fetchLabelsFor, normalizeLabel, isSingleIngredientLabel, sleep } = require('../src/lib/openfda');
-const apiKeys = require('../src/lib/api-keys');
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(`--${n}`);
@@ -25,6 +24,7 @@ const opt = (n, d = null) => opts(n)[0] ?? d;
 async function main() {
   const dry = flag('dry');
   const per = Number(opt('per', 2));
+  const apiKey = process.env.OPENFDA_API_KEY || null;
 
   let keys = opts('ingredient').map(canonicalIngredient).filter(Boolean);
   if (opt('top')) keys = keys.concat(await clinical.topIngredientKeys(Number(opt('top'))));
@@ -33,10 +33,7 @@ async function main() {
   console.log(`Ingredients to look up: ${keys.length}`);
 
   let fixture = null;
-  if (opt('file')) {
-    const data = JSON.parse(fs.readFileSync(opt('file'), 'utf8'));
-    fixture = data.results || data;  // openFDA returns { results: [...] } or array
-  }
+  if (opt('file')) fixture = JSON.parse(fs.readFileSync(opt('file'), 'utf8'));
 
   let saved = 0, missing = 0, failed = 0;
   for (const key of keys) {
@@ -45,14 +42,7 @@ async function main() {
       if (fixture) {
         rows = fixture.filter((raw) => isSingleIngredientLabel(raw, key)).map((raw) => normalizeLabel(raw, key)).filter(Boolean).slice(0, per);
       } else {
-        const { apiKey, credentialId } = await apiKeys.getKey('openfda');
-        const start = Date.now();
         rows = await fetchLabelsFor(key, { per, apiKey });
-        const latency = Date.now() - start;
-        await apiKeys.recordResult(credentialId, {
-          success: true, statusCode: 200, latencyMs: latency,
-          requestMetadata: { endpoint: 'labels', ingredient: key }
-        });
         await sleep(apiKey ? 300 : 700);                      // stay well inside openFDA's rate limit
       }
       if (!rows.length) { missing++; console.log(`  - ${key}: no single-ingredient US label found`); continue; }

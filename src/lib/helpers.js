@@ -32,21 +32,6 @@ function cleanText(value, maxLen = 500) {
 }
 
 /**
- * Clean a product name for display only. The raw NAFDAC name often carries junk from the
- * source, e.g. "AMYVIL 25 TABLETS $1" or "Rosudex 20 Tablets_". The database keeps the raw
- * value; this is only used to render a nicer title.
- */
-function cleanProductName(name) {
-  if (!name) return name;
-  return String(name)
-    .replace(/_/g, ' ')                       // underscores -> spaces
-    .replace(/\s+\$\d+\s*$/i, '')             // trailing "$1", "$2" ...
-    .replace(/\s+/g, ' ')                     // collapse repeated spaces
-    .replace(/\s*[.,;:]\s*$/, '')             // trim trailing punctuation
-    .trim();
-}
-
-/**
  * Turn a drug row into a registration verdict.
  * IMPORTANT: this only describes the REGISTRATION RECORD. It can never prove that a physical pack is genuine.
  */
@@ -71,6 +56,16 @@ function verdictFor(drug, now = new Date()) {
   }
   return { level: 'info', label: 'Registration status not stated',
     reasons: ['The source record does not clearly say whether this registration is active.'] };
+}
+
+/** Display-only cleanup of junk in NAFDAC product names ("AMYVIL 25 TABLETS $1", "Rosudex 20 Tablets_"). The stored name is never changed. */
+function cleanProductName(name) {
+  return String(name || '')
+    .replace(/_+/g, ' ')
+    .replace(/\s*\$\s*\d+\s*$/, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/[\s.,;:]+$/, '')
+    .trim();
 }
 
 /** Public shape of a drug (drops internal helper columns) */

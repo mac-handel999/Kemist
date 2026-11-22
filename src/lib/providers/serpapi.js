@@ -76,10 +76,11 @@ async function search({ apiKey, lat, lng, q, start = 0, zoom = 14, gl = '' }) {
   if (gl) params.set('gl', gl);
   const res = await fetch(`${API}?${params}`, { signal: AbortSignal.timeout(45000) });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok && !json.error) throw new Error(`SerpApi ${res.status}`);
-  if (json.error) {
-    if (/hasn't returned any results|no results/i.test(json.error)) return { rows: [], rawCount: 0 };
-    throw new Error(`SerpApi: ${json.error}`);
+  if (json.error && /hasn't returned any results|no results/i.test(json.error)) return { rows: [], rawCount: 0 };
+  if (!res.ok || json.error) {
+    const e = new Error(`SerpApi: ${json.error || res.status}`);
+    e.status = res.status;                          // lets the key pool tell "out of searches" from "bad request"
+    throw e;
   }
   return parseResponse(json);
 }
