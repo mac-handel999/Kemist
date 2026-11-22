@@ -66,11 +66,11 @@ module.exports = {
   async getByIngredient(key, limit = 2) {
     if (store.mode === 'supabase') {
       const { data, error } = await store.client.from('clinical_info').select('*')
-        .eq('ingredient_key', key).order('effective_date', { ascending: false, nullsFirst: false }).limit(limit);
+        .ilike('ingredient_key', key).order('effective_date', { ascending: false, nullsFirst: false }).limit(limit);
       if (error) throw new Error(`clinical_info: ${error.message}`);
       return data || [];
     }
-    return demoRows.filter((r) => r.ingredient_key === key).slice(0, limit);
+    return demoRows.filter((r) => r.ingredient_key.toLowerCase() === key.toLowerCase()).slice(0, limit);
   },
 
   /** One entry per ingredient that has label text. */
