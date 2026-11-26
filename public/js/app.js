@@ -61,6 +61,36 @@ const ICON = {
     set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage can be unavailable */ } },
   };
 
+  // ---------- Analytics Tracking ----------
+  let analyticsSessionId = null;
+  async function initAnalyticsSession() {
+    try {
+      const res = await fetch('/api/analytics/session');
+      const data = await res.json();
+      analyticsSessionId = data.session_id;
+    } catch { analyticsSessionId = 'sess_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36); }
+  }
+
+  async function trackEvent(event, data = {}) {
+    if (!analyticsSessionId) await initAnalyticsSession();
+    try {
+      await fetch('/api/analytics/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Session-ID': analyticsSessionId },
+        body: JSON.stringify({ event, ...data, page: location.hash || '/' }),
+      });
+    } catch { /* fail silently */ }
+  }
+
+  // Track page views on route changes
+  const originalRoute = route;
+  window.route = async function(...args) {
+    await originalRoute(...args);
+    const { parts } = parseHash();
+    const pageName = parts[0] || 'home';
+    await trackEvent('page_view', { page: '/' + pageName });
+  };
+
   const state = { meta: null, installPrompt: null };
 
   const fmtDate = (d) => (d ? new Date(String(d).slice(0, 10) + 'T00:00:00').toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : null);
@@ -204,6 +234,9 @@ const ICON = {
   async function NewsView(params) {
     const page = h('div', { class: 'page news-page' }, loading('Loading news'));
     view.append(page);
+    
+    // Track news view with filters
+    await trackEvent('page_view', { page: '#/news', query: `category=${params.get('category') || 'all'},country=${params.get('country') || 'all'}` });
 
     try {
       const category = params.get('category') || '';
@@ -352,10 +385,12 @@ const ICON = {
           const r = await api(`/api/drugs/verify?nrn=${encodeURIComponent(q)}`);
           if (mine !== seq) return;
           renderVerify(r);
+          await trackEvent('nafdac_verify', { medicine_name: q, query: q });
         } else {
           const r = await api(`/api/drugs?q=${encodeURIComponent(q)}`);
           if (mine !== seq) return;
           renderResults(q, r.data);
+          await trackEvent('medicine_search', { medicine_name: q, query: q });
         }
         if (remember) store.set('kemist.recent', [q, ...store.get('kemist.recent', []).filter((x) => x !== q)].slice(0, 5));
       } catch (e) {
@@ -514,6 +549,13 @@ const ICON = {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ report_type: f.type.value, product_name: f.product.value, nrn: f.nrn.value, where_bought: f.where.value, details: f.details.value, contact: f.contact.value, website: f.trap.value }),
           });
+          
+          // Track report submission
+          await trackEvent('report_submitted', { 
+            query: f.product.value,
+            metadata: { report_type: f.type.value, has_nrn: !!f.nrn.value, has_contact: !!f.contact.value }
+          });
+          
           view.replaceChildren(h('div', { class: 'page' },
             h('div', { class: 'msg ok', role: 'status' }, 'Report received. Thank you for helping keep medicines safe.'),
             h('p', { class: 'hint' }, 'If someone is unwell after taking a medicine, get medical help now. Do not wait for a reply.'),
@@ -592,6 +634,10 @@ const ICON = {
   async function AlertsView(params) {
     const page = h('div', { class: 'page' }, loading('Loading alerts'));
     view.append(page);
+    
+    // Track alerts view with filters
+    await trackEvent('page_view', { page: '#/alerts', query: `search=${params.get('q') || ''},status=${params.get('status') || 'active'},type=${params.get('type') || 'all'},severity=${params.get('severity') || 'all'}` });
+
     try {
       const search = params.get('q') || '';
       const status = params.get('status') || 'active';
@@ -694,6 +740,19 @@ const ICON = {
               purchase_date: f.purchase.value || null, details: f.details.value, contact: f.contact.value
             }),
           });
+          
+          // Track report submission
+          await trackEvent('report_submitted', { 
+            query: f.product.value,
+            metadata: { 
+              report_type: f.type.value, 
+              has_nrn: !!f.nrn.value, 
+              has_batch: !!f.batch.value,
+              has_manufacturer: !!f.manufacturer.value,
+              has_contact: !!f.contact.value 
+            }
+          });
+          
           view.replaceChildren(h('div', { class: 'page' },
             h('a', { class: 'back', href: '#/check' }, icon('back'), 'Back to Check'),
             h('div', { class: 'msg ok', role: 'status' }, 'Report submitted. Thank you for helping keep medicines safe.'),
@@ -732,6 +791,10 @@ const ICON = {
     try {
       const search = params.get('q') || '';
       const ingredient = params.get('ingredient');
+      
+      // Track clinical search
+      if (search) await trackEvent('clinical_drug_search', { query: search });
+      if (ingredient) await trackEvent('clinical_drug_search', { medicine_name: ingredient });
       
       // Load ingredients for the sidebar
       const [{ data: ingredients }] = await Promise.all([
@@ -1128,6 +1191,12 @@ const ICON = {
           body: JSON.stringify({ message: text, history })
         });
 
+        // Track AI chat
+        await trackEvent('ai_chat', { 
+          query: text,
+          metadata: { has_sources: !!(res.sources && res.sources.length) }
+        });
+
         document.getElementById(typingId)?.remove();
         addMessage(chat, 'assistant', res.response, res.sources);
         renderChat();
@@ -1296,6 +1365,10 @@ const ICON = {
         if (mine !== s.seq) return;
         s.items = r.data;
         render();
+        
+        // Track facility search
+        await trackEvent('facility_search', { query: `${t?.[1] || 'all'} near ${center.lat.toFixed(4)},${center.lng.toFixed(4)}`, page: '#/nearby' });
+        
         const mapDown = nearbyEl.classList.contains('no-map');
         const radiusKm = (s.radius / 1000).toFixed(s.radius < 1000 ? 1 : 0);
         say(r.note || (r.data.length ? (mapDown ? 'The map could not load, but the list below still works.' : '') : `No listings found within ${radiusKm} km.`));

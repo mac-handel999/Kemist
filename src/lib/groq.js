@@ -24,8 +24,12 @@ async function request(apiKey, body) {
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const e = new Error(`Groq ${res.status}: ${(json.error && json.error.message) || 'request failed'}`);
+    const msg = (json.error && json.error.message) || 'request failed';
+    const e = new Error(`Groq ${res.status} (model: ${body.model}): ${msg}`);
     e.status = res.status;
+    if (res.status === 404 || (res.status === 400 && /model/i.test(msg))) {
+      console.error('[groq] Model not found or unavailable:', body.model, '- set GROQ_MODEL env var to a supported model (default: openai/gpt-oss-120b)');
+    }
     throw e;
   }
   return json;

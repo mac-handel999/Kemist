@@ -39,26 +39,34 @@
 
     const bubble = (role, ...kids) => { const b = h('div', { class: `bubble ${role}` }, ...kids); log.append(b); b.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return b; };
 
-    async function ask(text) {
+    async function ask(text, isRetry = false) {
       const q = String(text || '').trim();
       if (q.length < 2 || busy) return;
+      if (!isRetry) {
+        history.push({ role: 'user', content: q });
+      }
       busy = true; sendBtn.disabled = true; input.value = '';
       suggestions.hidden = true;
-      bubble('user', q);
+      if (!isRetry) bubble('user', q);
       const thinking = bubble('bot', h('span', { class: 'spinner' }), ' Looking in Kemist’s data…');
       try {
         const r = await api('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: q, history: history.slice(-4) }) });
-        history.push({ role: 'user', content: q }, { role: 'assistant', content: r.answer });
-        const kids = [paragraphs(r.answer, r.sources || [])];
+        const answer = r.answer && String(r.answer).trim();
+        if (!answer) throw new Error('empty answer');
+        history.push({ role: 'assistant', content: answer });
+        const kids = [paragraphs(answer, r.sources || [])];
         if (r.mode === 'emergency') kids.push(h('a', { class: 'btn danger', href: 'tel:112' }, icon('phone'), 'Call 112'), h('a', { class: 'btn', href: '#/nearby' }, 'Find a hospital'));
-        if (r.mode === 'retrieval-only') kids.push(h('p', { class: 'hint' }, r.note || 'The AI is switched off, so this is a plain list of matching records.'));
+        if (r.mode === 'retrieval-only') kids.push(h('p', { class: 'hint' }, r.note || 'The AI is busy right now, so this is a plain list of matching records.'));
+        if (r.mode === 'greeting') kids.push(h('p', { class: 'hint' }, 'Try asking about a medicine, NAFDAC number, or safety alert.'));
         if (r.sources && r.sources.length) kids.push(h('div', { class: 'sources' }, h('span', { class: 'hint' }, 'Sources'), r.sources.map((s) =>
           h('a', { class: 'chip', href: s.link || '#', ...(s.external ? { target: '_blank', rel: 'noopener noreferrer' } : {}) }, `${s.id.slice(1)} · ${s.title.slice(0, 48)}`))));
         thinking.className = `bubble bot${r.mode === 'emergency' ? ' emergency' : ''}`;
         put(thinking, kids);
       } catch (e) {
         thinking.className = 'bubble bot error';
-        put(thinking, e.message);
+        const retryBtn = h('button', { class: 'btn small', onclick: () => ask(q, true) }, icon('refresh'), ' Retry');
+        put(thinking, 'Sorry, I could not answer that. Try again.', retryBtn);
+        console.error('[chat] Error:', e.message);
       } finally { busy = false; sendBtn.disabled = false; input.focus(); }
     }
 

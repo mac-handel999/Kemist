@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert');
-const { handle, buildMessages, EMERGENCY } = require('../src/lib/assistant');
+const { handle, buildMessages, EMERGENCY, GREETING } = require('../src/lib/assistant');
 const { tokens, nrnsIn, retrieve } = require('../src/lib/rag');
 
 const src = [{ id: 'S1', kind: 'drug', title: 'AC Tramadol Capsules', link: '#/drug/1', text: 'Product: AC Tramadol Capsules | NAFDAC number: A4-7559' }];
@@ -36,6 +36,44 @@ test('without an AI key, or when the AI fails, it falls back to a plain list of 
   const failed = await handle({ message: 'tramadol' }, { retrieve: found, llm: async () => { throw new Error('all keys used up'); } });
   assert.strictEqual(failed.mode, 'retrieval-only');
   assert.match(failed.answer, /AC Tramadol Capsules/);
+});
+
+test('AI empty answer triggers fallback to retrieval-only', async () => {
+  const empty = await handle({ message: 'tramadol' }, { retrieve: found, llm: async () => '' });
+  assert.strictEqual(empty.mode, 'retrieval-only');
+  assert.match(empty.answer, /AC Tramadol Capsules/);
+  const whitespace = await handle({ message: 'tramadol' }, { retrieve: found, llm: async () => '   \n\t  ' });
+  assert.strictEqual(whitespace.mode, 'retrieval-only');
+});
+
+test('greetings and small talk are answered without retrieval or AI', async () => {
+  let retrieveCalled = false;
+  let llmCalled = false;
+  const out = await handle({ message: 'hey' }, { retrieve: async () => { retrieveCalled = true; return { sources: [], flags: {} }; }, llm: async () => { llmCalled = true; return 'x'; } });
+  assert.strictEqual(out.mode, 'greeting');
+  assert.strictEqual(retrieveCalled, false);
+  assert.strictEqual(llmCalled, false);
+  assert.match(out.answer, /Kemist Assistant/i);
+  assert.match(out.answer, /medicine registration/i);
+  assert.match(out.answer, /safety alerts/i);
+  assert.match(out.answer, /drug information/i);
+  assert.match(out.answer, /pharmacy locations/i);
+});
+
+test('greeting regex matches common greetings', () => {
+  assert.ok(GREETING.test('hi'));
+  assert.ok(GREETING.test('hello'));
+  assert.ok(GREETING.test('hey'));
+  assert.ok(GREETING.test('thanks'));
+  assert.ok(GREETING.test('thank you'));
+  assert.ok(GREETING.test('help'));
+  assert.ok(GREETING.test('what can you do'));
+  assert.ok(GREETING.test('how does this work'));
+  assert.ok(GREETING.test('what do you do'));
+  assert.ok(GREETING.test('capabilities'));
+  assert.ok(GREETING.test('features'));
+  assert.ok(!GREETING.test('what is tramadol'));
+  assert.ok(!GREETING.test('is A4-7559 registered'));
 });
 
 test('the prompt keeps the rules, the context and only recent history', () => {

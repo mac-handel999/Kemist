@@ -14,6 +14,8 @@ require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 const { sha256 } = require('../src/lib/helpers');
 const apiKeys = require('../src/lib/api-keys');
+const { startJob } = require('../src/lib/jobrun');
+const { isValidArticleUrl, isGenericTitle } = require('../src/lib/news-filter');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -27,7 +29,6 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Default search queries for Nigerian and global health news
 const DEFAULT_QUERIES = [
-  // Nigeria-focused queries
   { q: 'NAFDAC medicine drug safety alerts recalls Nigeria', category: 'regulatory', country: 'NG', source_type: 'regulatory' },
   { q: 'Nigeria pharmaceutical industry pharmacy healthcare news', category: 'pharmacy', country: 'NG', source_type: 'news_publisher' },
   { q: 'Nigeria Ministry of Health healthcare policy hospital news', category: 'health', country: 'NG', source_type: 'government' },
@@ -62,27 +63,21 @@ function generateContentHash(article) {
 function categorizeArticle(title, snippet, publisherDomain) {
   const text = `${title} ${snippet || ''}`.toLowerCase();
   
-  // Regulatory keywords
   if (text.match(/\b(recall|alert|warning|counterfeit|falsified|substandard|nafdac|fda|ema|who)\b/)) {
     return 'regulatory';
   }
-  // Pharmacy/medicines keywords
   if (text.match(/\b(pharmacy|pharmaceutical|drug|medicine|medication|prescription|pharmacist)\b/)) {
     return 'pharmacy';
   }
-  // Outbreak/disease keywords
   if (text.match(/\b(outbreak|epidemic|pandemic|disease|virus|infection|ncdc|surveillance)\b/)) {
     return 'outbreaks';
   }
-  // Research keywords
   if (text.match(/\b(clinical trial|research|study|approval|phase [123]|fda approved|ema approved)\b/)) {
     return 'research';
   }
-  // Global health keywords
   if (text.match(/\b(who|world health|global health|international|unicef|gavi)\b/)) {
     return 'global';
   }
-  // Default to health
   return 'health';
 }
 
@@ -102,14 +97,12 @@ function getSourceType(publisherDomain, publisherName) {
 }
 
 async function fetchSerpApiNews(query, gl = 'ng', hl = 'en') {
-  // Try to get key from API key manager (Supabase), fallback to env var
   let key, credentialId;
   try {
     const cred = await apiKeys.getKey('serpapi');
     key = cred.key;
     credentialId = cred.credentialId;
   } catch (e) {
-    // Fallback to environment variable for local development
     key = process.env.SERPAPI_API_KEY;
     credentialId = 'env-fallback';
     if (!key) {
@@ -170,7 +163,6 @@ async function upsertArticle(article, queryMeta) {
   const category = categorizeArticle(article.title, article.snippet, article.publisher_domain);
   const sourceType = getSourceType(article.publisher_domain, article.publisher_name);
   
-  // Check if article already exists by content hash or URL (if URL exists)
   let existingQuery = supabase.from('news_articles').select('id, published_at').eq('content_hash', contentHash);
   
   if (article.article_url) {
@@ -199,7 +191,6 @@ async function upsertArticle(article, queryMeta) {
   };
 
   if (existing) {
-    // Update if newer or if we have more data
     const existingDate = new Date(existing.published_at);
     const newDate = new Date(articleData.published_at);
     if (newDate > existingDate || !existingDate) {
@@ -261,7 +252,19 @@ async function runSync(queries, dryRun = false) {
             console.log(`    [DRY RUN] ${article.title?.slice(0, 80)}...`);
             continue;
           }
-          
+
+          // Filter out junk articles
+          if (!isValidArticleUrl(article.article_url)) {
+            console.log(`    FILTERED (no valid URL): ${article.title?.slice(0, 60)}...`);
+            totalErrors++;
+            continue;
+          }
+          if (isGenericTitle(article.title)) {
+            console.log(`    FILTERED (generic title): ${article.title?.slice(0, 60)}...`);
+            totalErrors++;
+            continue;
+          }
+
           const result = await upsertArticle(article, queryMeta);
           if (result.action === 'inserted') totalInserted++;
           else if (result.action === 'updated') totalUpdated++;
@@ -280,7 +283,6 @@ async function runSync(queries, dryRun = false) {
       console.error(`  Query failed: ${e.message}`);
     }
     
-    // Rate limiting - be nice to SerpAPI
     await sleep(1000);
   }
   
@@ -330,8 +332,20 @@ async function main() {
     console.log('Get your key from https://serpapi.com/');
     process.exit(1);
   }
-  
-  await runSync(queries, dryRun);
+
+  const job = await startJob('sync-news');
+  try {
+    await runSync(queries, dryRun);
+    await job.finish('success', {
+      records_seen: totalFound,
+      records_saved: totalInserted + totalUpdated,
+      errors: totalErrors,
+      details: { allErrors }
+    });
+  } catch (e) {
+    await job.finish('failed', { error_message: e.message });
+    throw e;
+  }
 }
 
 main().catch((e) => {

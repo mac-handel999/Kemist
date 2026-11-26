@@ -18,6 +18,23 @@ const EMERGENCY_ANSWER = 'This sounds like it could be an emergency. Please call
 
 const NO_DATA = "I couldn't find that in Kemist's data. Try the medicine's name or the NAFDAC number printed on the pack, or ask a pharmacist. You can also check nafdac.gov.ng.";
 
+const GREETING = /^(hi|hello|hey|thanks|thank you|help|what can you do|how does this work|what do you do|capabilities|features)\b/i;
+
+const GREETING_ANSWER = `Hello! I'm the Kemist Assistant. I can help you with:
+
+• **Medicine registration** — Check if a medicine is registered with NAFDAC (use the NAFDAC number on the pack)
+• **Safety alerts** — See NAFDAC warnings about fake or substandard medicines
+• **Drug information** — US FDA label info (indications, warnings, side effects, interactions) for active ingredients
+• **Pharmacy locations** — Find nearby pharmacies and health facilities
+
+Ask me something like:
+- "Is NAFDAC number A4-1234 registered?"
+- "What is paracetamol used for?"
+- "Has NAFDAC warned about fake artemether?"
+- "Show me pharmacies near me"
+
+I don't give medical advice or doses. For symptoms, ask a pharmacist or doctor. In an emergency, call 112.`;
+
 const clip = (s, n) => String(s || '').slice(0, n);
 
 function cleanHistory(history) {
@@ -51,6 +68,7 @@ async function handle(body, deps = {}) {
   const message = clip(String((body && body.message) || '').trim(), 500);
   if (message.length < 2) return { status: 400, error: 'Ask a question (at least 2 characters).' };
   if (EMERGENCY.test(message)) return { status: 200, mode: 'emergency', answer: EMERGENCY_ANSWER, sources: [] };
+  if (GREETING.test(message)) return { status: 200, mode: 'greeting', answer: GREETING_ANSWER, sources: [] };
 
   const { sources } = await (deps.retrieve || retrieve)(message);
   if (!sources.length) return { status: 200, mode: 'no-data', answer: NO_DATA, sources: [] };
@@ -58,7 +76,7 @@ async function handle(body, deps = {}) {
   if (!deps.llm) return { status: 200, mode: 'retrieval-only', answer: retrievalOnlyAnswer(sources), sources: publicSources(sources) };
   try {
     const text = await deps.llm(buildMessages(message, body.history, sources));
-    if (!text) throw new Error('empty answer');
+    if (!text || !text.trim()) throw new Error('empty answer');
     return { status: 200, mode: 'ai', answer: clip(text, 1400), sources: publicSources(sources) };
   } catch (e) {
     console.warn('[assistant] AI unavailable, falling back to retrieval only:', e.message);
@@ -66,4 +84,4 @@ async function handle(body, deps = {}) {
   }
 }
 
-module.exports = { handle, buildMessages, EMERGENCY, SYSTEM };
+module.exports = { handle, buildMessages, EMERGENCY, SYSTEM, GREETING };

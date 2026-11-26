@@ -15,6 +15,7 @@
     "sync:clinical": "node scripts/import-clinical.js",
     "prefill:facilities": "node scripts/prefill-facilities.js",
     "test": "node --test",
+    "check:library": "node scripts/check-library.js",
     "import:serpapi": "node scripts/import-serpapi.js",
     "import:news": "node scripts/import-news.js",
     "import:alerts": "node scripts/import-alerts.js",

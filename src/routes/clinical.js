@@ -72,8 +72,12 @@ router.get('/ingredient/:key', async (req, res, next) => {
     const enrichedLabels = labels.map((r) => ({ source: r.source, jurisdiction: r.jurisdiction, title: r.title, effective_date: r.effective_date, label_version: r.label_version, source_url: r.source_url, source_record_id: r.source_record_id, sections: sectionsOf(r) }));
     const enriched = await enrichWithMedia(enrichedLabels);
     res.json({
-      ingredient_key: key, note: NOTE, dailyMedNote: DAILYMED_NOTE, products,
-      labels: enriched,
+      count: enriched.length,
+      data: enriched,
+      ingredient_key: key,
+      note: NOTE,
+      dailyMedNote: DAILYMED_NOTE,
+      products,
     });
   } catch (e) { next(e); }
 });
