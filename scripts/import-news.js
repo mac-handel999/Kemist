@@ -14,6 +14,7 @@ const news = require('../src/db/news');
 const external = require('../src/db/external');
 const serp = require('../src/lib/providers/serpnews');
 const { KeyPool, PoolExhaustedError, parseKeys } = require('../src/lib/keypool');
+const { startJob } = require('../src/lib/jobrun');
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(`--${n}`);
@@ -28,6 +29,7 @@ async function main() {
     return;
   }
 
+  const job = await startJob('import-news');
   const list = flag('all') ? serp.QUERIES : serp.pickQueries(Number(opt('rotate', 4)));
   const limit = Number(process.env.SERPAPI_MONTHLY_LIMIT || 240);
   const keys = parseKeys(process.env.SERPAPI_API_KEYS, process.env.SERPAPI_API_KEY);
@@ -40,9 +42,9 @@ async function main() {
   const allowed = Math.min(list.length, remaining, maxCalls);
   console.log(`Queries planned: ${list.length}. Keys: ${keys.length || 'none set'}. Calls left this month: ${remaining}. This run will make: ${allowed}.`);
   list.slice(0, allowed).forEach((q, i) => console.log(`  ${i + 1}. [${q.category}] ${q.q}`));
-  if (flag('dry')) return;
-  if (!keys.length) { console.error('Set SERPAPI_API_KEY (or SERPAPI_API_KEYS=key1,key2) in .env.'); process.exitCode = 1; return; }
-  if (!allowed) { console.error('No budget left. Nothing was called.'); process.exitCode = 1; return; }
+  if (flag('dry')) { await job.finish('success', { details: { dryRun: true } }); return; }
+  if (!keys.length) { await job.finish('failed', { error_message: 'No SerpAPI keys set' }); console.error('Set SERPAPI_API_KEY (or SERPAPI_API_KEYS=key1,key2) in .env.'); process.exitCode = 1; return; }
+  if (!allowed) { await job.finish('partial', { details: { reason: 'No budget left' } }); console.error('No budget left. Nothing was called.'); process.exitCode = 1; return; }
 
   let saved = 0, failed = 0;
   for (const q of list.slice(0, allowed)) {
@@ -58,6 +60,14 @@ async function main() {
     await sleep(1000);
   }
   console.log(`Done. Headlines saved/updated: ${saved}. Failed queries: ${failed}. Calls left this month: ${await pool.remaining()}.`);
+
+  await job.finish(failed && !saved ? 'failed' : saved > 0 ? 'success' : 'partial', {
+    records_seen: list.length,
+    records_saved: saved,
+    errors: failed,
+    details: { callsLeft: await pool.remaining() }
+  });
+
   if (failed && !saved) process.exitCode = 1;
 }
 

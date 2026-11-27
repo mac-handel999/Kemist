@@ -18,6 +18,27 @@ function tileImgSrc() {
   } catch { return null; }
 }
 
+/** CSP img-src entries for all fallback tile providers. */
+function tileFallbackImgSrc() {
+  const sources = [
+    'https://*.basemaps.cartocdn.com',
+    'https://tile.openstreetmap.org',
+    'https://*.tile.openstreetmap.org'
+  ];
+  
+  // Add configured provider if it's different
+  try {
+    const t = tileConfig().url;
+    const u = new URL(t.replace('{s}', 'a').replace(/\{[a-z]\}/g, '0'));
+    const configured = t.includes('{s}') ? `${u.protocol}//*.${u.hostname.replace(/^a\./, '')}` : u.origin;
+    if (!sources.includes(configured)) {
+      sources.push(configured);
+    }
+  } catch {}
+  
+  return sources;
+}
+
 /** CSP img-src entry for Supabase storage bucket. */
 function supabaseStorageImgSrc() {
   try {
@@ -34,10 +55,11 @@ app.use(helmet({
   contentSecurityPolicy: {
     useDefaults: true,
     directives: {
-      'script-src': ["'self'", 'https://cdnjs.cloudflare.com'],
-      'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
+      'script-src': ["'self'", 'https://cdnjs.cloudflare.com', 'https://cdn.jsdelivr.net', 'https://unpkg.com'],
+      'script-src-attr': ["'unsafe-inline'"],
+      'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com', 'https://unpkg.com'],
       'font-src': ["'self'", 'https://fonts.gstatic.com'],
-      'img-src': ["'self'", 'data:', 'blob:', 'https://tile.openstreetmap.org', 'https://*.tile.openstreetmap.org', 'https://cdnjs.cloudflare.com', tileImgSrc(), supabaseStorageImgSrc()].filter(Boolean),
+      'img-src': ["'self'", 'data:', 'blob:', 'https://cdnjs.cloudflare.com', tileImgSrc(), supabaseStorageImgSrc(), ...tileFallbackImgSrc()].filter(Boolean),
       'connect-src': ["'self'"],
       'worker-src': ["'self'"],
       'upgrade-insecure-requests': null,
@@ -62,15 +84,18 @@ app.use('/api/alerts', require('./src/routes/alerts'));
 app.use('/api/news', require('./src/routes/news'));
 app.use('/api/geo', require('./src/routes/geo'));
 app.use('/api/chat', require('./src/routes/chat'));
+app.use('/api/admin', require('./src/routes/admin'));
+app.use('/api/analytics', require('./src/routes/analytics'));
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Endpoint not found.' }));
 
 app.use(express.static(path.join(__dirname, 'public'), {
+  index: false,
   maxAge: '1h',
   setHeaders(res, file) {
     if (/sw\.js$|manifest\.json$/.test(file)) res.setHeader('Cache-Control', 'no-cache');
   },
 }));
-app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'app', 'index.html')));
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {

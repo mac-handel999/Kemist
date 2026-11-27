@@ -48,9 +48,9 @@
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22c5.5 0 10-4.5 10-10S17.5 2 12 2 2 6.5 2 12s4.5 10 10 10z"/><path d="M12 6v6l4 2"/></svg>
         Alerts
       </a>
-      <a href="#/clinical" data-route="clinical">
+      <a href="#/library" data-route="library">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-        Clinical
+        Library
       </a>
       <a href="#/news" data-route="news">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z"/><path d="M8 10h8"/><path d="M8 14h5"/><path d="M8 18h3"/></svg>
@@ -84,6 +84,10 @@
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
         <span>Nearby</span>
       </a>
+      <a href="#/library" data-route="library">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        <span>Library</span>
+      </a>
       <a href="#/news" data-route="news">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z"/><path d="M8 10h8"/><path d="M8 14h5"/><path d="M8 18h3"/></svg>
         <span>News</span>
@@ -107,6 +111,14 @@
               Use my location
             </button>
             <button id="emergencyBtn" class="btn danger" type="button">Emergency</button>
+            <button id="geofenceToggle" class="btn secondary" type="button" aria-pressed="false" title="Get alerts when near a pharmacy or hospital">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              <span>Location alerts</span>
+            </button>
+            <span id="geofenceIndicator" class="geofence-indicator" hidden aria-live="polite">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              Location on
+            </span>
           </div>
           <div class="chips" id="typeChips" role="group" aria-label="Filter by type"></div>
           <div class="chips" id="radiusChips" role="group" aria-label="Search radius"></div>
@@ -125,6 +137,8 @@
   <dialog id="emergencyDlg" aria-labelledby="emTitle"></dialog>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
+  <script src="/js/tilechain.js" defer></script>
+  <script src="/js/geofence.js" defer></script>
   <script src="/js/app.js" defer></script>
   <script src="/js/clinical.js" defer></script>
   <script src="/js/art.js" defer></script>

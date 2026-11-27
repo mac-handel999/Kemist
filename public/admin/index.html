@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Kemist Admin Dashboard - System Monitoring & Analytics">
+  <title>Kemist Admin Dashboard</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://unpkg.com/aos@2.3.4/dist/aos.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar" role="navigation" aria-label="Admin navigation">
+    <div class="sidebar-header">
+      <a href="/admin/" class="sidebar-brand">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+        <span>Kemist Admin</span>
+      </a>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#overview" class="nav-link active" data-section="overview">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <span>Overview</span>
+      </a>
+      <a href="#analytics" class="nav-link" data-section="analytics">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span>Analytics</span>
+      </a>
+      <a href="#medicines" class="nav-link" data-section="medicines">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 000 4h4v-4Z"/></svg>
+        <span>Medicine Database</span>
+      </a>
+      <a href="#jobs" class="nav-link" data-section="jobs">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        <span>Workflow Monitor</span>
+      </a>
+      <a href="#coverage" class="nav-link" data-section="coverage">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        <span>Maps & Coverage</span>
+      </a>
+      <a href="#images" class="nav-link" data-section="images">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        <span>Medicine Images</span>
+      </a>
+      <a href="#health" class="nav-link" data-section="health">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span>System Health</span>
+      </a>
+      <a href="#actions" class="nav-link" data-section="actions">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        <span>Admin Actions</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="/" class="nav-link" target="_blank">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        <span>View Site</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Mobile sidebar toggle -->
+  <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle navigation" aria-expanded="false">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+
+  <!-- Main content -->
+  <main class="main-content" id="mainContent" role="main">
+    <!-- Top bar -->
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <h1 class="page-title" id="pageTitle">Overview</h1>
+      </div>
+      <div class="top-bar-right">
+        <div class="status-indicator" id="systemStatus" title="System status">
+          <span class="status-dot" id="statusDot"></span>
+          <span class="status-text" id="statusText">Checking...</span>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="refreshBtn" aria-label="Refresh data">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        </button>
+        <div class="admin-user">
+          <span class="user-badge">Admin</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Sections -->
+    <!-- Overview Section -->
+    <section id="overview" class="admin-section active" aria-labelledby="overview-title">
+      <h2 id="overview-title" class="section-title">System Overview</h2>
+      <p class="section-subtitle">Real-time system statistics and key metrics</p>
+
+      <!-- Stats Grid -->
+      <div class="stats-grid" id="statsGrid">
+        <!-- Cards will be injected here -->
+      </div>
+
+      <!-- Quick Charts Row -->
+      <div class="charts-row" id="chartsRow">
+        <div class="chart-card" data-aos="fade-up">
+          <h3>API Usage (30 days)</h3>
+          <div class="chart-legend" id="apiUsageLegend"></div>
+          <canvas id="apiUsageChart" height="200"></canvas>
+        </div>
+        <div class="chart-card" data-aos="fade-up" data-aos-delay="100">
+          <h3>Job Status (24h)</h3>
+          <div class="chart-legend" id="jobStatusLegend"></div>
+          <canvas id="jobStatusChart" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- Recent Activity -->
+      <div class="card" data-aos="fade-up" data-aos-delay="200">
+        <div class="card-header">
+          <h3>Recent Job Runs</h3>
+          <a href="#jobs" class="btn btn-link btn-sm">View All</a>
+        </div>
+        <div class="table-container">
+          <table id="recentJobsTable">
+            <thead>
+              <tr>
+                <th>Job Type</th>
+                <th>Status</th>
+                <th>Records</th>
+                <th>Duration</th>
+                <th>Started</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Analytics Section -->
+    <section id="analytics" class="admin-section" aria-labelledby="analytics-title">
+      <h2 id="analytics-title" class="section-title">Analytics</h2>
+      <p class="section-subtitle">User activity, page visits, and search trends</p>
+
+      <div class="controls-row">
+        <label class="select-wrapper">
+          <select id="analyticsPeriod" aria-label="Time period">
+            <option value="7">Last 7 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="90">Last 90 days</option>
+          </select>
+        </label>
+        <button class="btn btn-primary" id="refreshAnalytics">Refresh</button>
+      </div>
+
+      <div class="analytics-grid">
+        <div class="chart-card wide" data-aos="fade-up">
+          <h3>Daily Page Visits</h3>
+          <canvas id="dailyVisitsChart" height="250"></canvas>
+        </div>
+        <div class="chart-card" data-aos="fade-up" data-aos-delay="100">
+          <h3>Top Pages</h3>
+          <div class="table-container" style="max-height: 300px;">
+            <table id="topPagesTable">
+              <thead><tr><th>Page</th><th>Views</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="chart-card" data-aos="fade-up" data-aos-delay="200">
+          <h3>Top Medicine Searches</h3>
+          <div class="table-container" style="max-height: 300px;">
+            <table id="topSearchesTable">
+              <thead><tr><th>Medicine</th><th>Searches</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Medicines Section -->
+    <section id="medicines" class="admin-section" aria-labelledby="medicines-title">
+      <h2 id="medicines-title" class="section-title">Medicine Database</h2>
+      <p class="section-subtitle">NAFDAC records, OpenFDA data, DailyMed labels, and image coverage</p>
+
+      <div class="stats-grid med-stats-grid" id="medStatsGrid">
+        <!-- Medicine stats cards -->
+      </div>
+
+      <div class="med-tabs">
+        <button class="tab-btn active" data-tab="nafdac">NAFDAC</button>
+        <button class="tab-btn" data-tab="clinical">Clinical / OpenFDA</button>
+        <button class="tab-btn" data-tab="dailymed">DailyMed</button>
+        <button class="tab-btn" data-tab="images">Images</button>
+      </div>
+
+      <div class="tab-panel active" id="tab-nafdac">
+        <div class="card">
+          <div class="table-container">
+            <table>
+              <thead><tr><th>Status</th><th>Count</th></tr></thead>
+              <tbody id="nafdacStatusTable"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Top Manufacturers</h3>
+          <div class="table-container">
+            <table>
+              <thead><tr><th>Manufacturer</th><th>Products</th></tr></thead>
+              <tbody id="nafdacMfrTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-clinical">
+        <div class="card">
+          <h3>Ingredients by Source</h3>
+          <div class="table-container">
+            <table>
+              <thead><tr><th>Source</th><th>Count</th></tr></thead>
+              <tbody id="clinicalSourceTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-dailymed">
+        <div class="card">
+          <div class="stats-mini" id="dailymedStats"></div>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-images">
+        <div class="card">
+          <div class="stats-mini" id="imageStats"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Jobs Section -->
+    <section id="jobs" class="admin-section" aria-labelledby="jobs-title">
+      <h2 id="jobs-title" class="section-title">Workflow Monitor</h2>
+      <p class="section-subtitle">Track import jobs, sync operations, and background tasks</p>
+
+      <div class="controls-row">
+        <label class="select-wrapper">
+          <select id="jobStatusFilter" aria-label="Filter by status">
+            <option value="">All Status</option>
+            <option value="success">Success</option>
+            <option value="failed">Failed</option>
+            <option value="running">Running</option>
+            <option value="queued">Queued</option>
+            <option value="partial">Partial</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </label>
+        <label class="select-wrapper">
+          <select id="jobTypeFilter" aria-label="Filter by job type">
+            <option value="">All Types</option>
+            <option value="sync-drugs">NAFDAC Sync</option>
+            <option value="import-clinical">Clinical Import</option>
+            <option value="sync-dailymed">DailyMed Sync</option>
+            <option value="sync-news">News Sync</option>
+            <option value="import-alerts">Alerts Import</option>
+            <option value="import-news">News Import</option>
+            <option value="import-serpapi">Facilities Import</option>
+            <option value="build-places">Build Places</option>
+            <option value="prefill-facilities">Prefill Facilities</option>
+            <option value="enrich-images">Image Enrichment</option>
+          </select>
+        </label>
+        <input type="text" id="jobSearch" placeholder="Search..." class="search-input" aria-label="Search jobs">
+        <button class="btn btn-primary" id="refreshJobs">Refresh</button>
+      </div>
+
+      <div class="card">
+        <div class="table-container">
+          <table id="jobsTable">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Source</th>
+                <th>Status</th>
+                <th>Found</th>
+                <th>Inserted</th>
+                <th>Updated</th>
+                <th>Skipped</th>
+                <th>Error</th>
+                <th>Started</th>
+                <th>Finished</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="jobsPagination"></div>
+      </div>
+    </section>
+
+    <!-- Coverage Section -->
+    <section id="coverage" class="admin-section" aria-labelledby="coverage-title">
+      <h2 id="coverage-title" class="section-title">Maps & Coverage</h2>
+      <p class="section-subtitle">Nigerian states, LGAs, and facility import progress</p>
+
+      <div class="stats-grid" id="coverageStatsGrid"></div>
+
+      <div class="card">
+        <h3>Coverage by State</h3>
+        <div class="table-container">
+          <table id="coverageStateTable">
+            <thead>
+              <tr>
+                <th>State</th>
+                <th>Total Areas</th>
+                <th>Completed</th>
+                <th>Pending</th>
+                <th>Failed</th>
+                <th>Facilities Found</th>
+                <th>Progress</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Facilities by Source</h3>
+        <div class="table-container" style="max-height: 300px;">
+          <table id="facilitySourceTable">
+            <thead><tr><th>Source</th><th>Count</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Images Section -->
+    <section id="images" class="admin-section" aria-labelledby="images-title">
+      <h2 id="images-title" class="section-title">Medicine Images</h2>
+      <p class="section-subtitle">Image enrichment pipeline: search, review, approve</p>
+
+      <div class="controls-row">
+        <label class="select-wrapper">
+          <select id="imageStatusFilter" aria-label="Filter by status">
+            <option value="">All Status</option>
+            <option value="pending">Pending Review</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="downloaded">Downloaded</option>
+          </select>
+        </label>
+        <input type="text" id="imageSearch" placeholder="Search by drug name or NRN..." class="search-input" aria-label="Search images">
+        <button class="btn btn-primary" id="refreshImages">Refresh</button>
+        <button class="btn btn-secondary" id="triggerImageEnrichment">Enrich Missing</button>
+      </div>
+
+      <div class="card">
+        <div class="table-container">
+          <table id="imagesTable">
+            <thead>
+              <tr>
+                <th>Drug / NRN</th>
+                <th>Thumbnail</th>
+                <th>Search Query</th>
+                <th>Source</th>
+                <th>Status</th>
+                <th>Dimensions</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="imagesPagination"></div>
+      </div>
+
+      <!-- Image Review Modal -->
+      <div class="modal" id="imageModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 id="modalTitle">Review Image</h3>
+            <button class="modal-close" id="modalClose" aria-label="Close">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="image-review">
+              <img id="modalImage" src="" alt="Candidate image">
+              <div class="image-info">
+                <p><strong>Drug:</strong> <span id="modalDrug"></span></p>
+                <p><strong>NRN:</strong> <span id="modalNrn"></span></p>
+                <p><strong>Search Query:</strong> <span id="modalQuery"></span></p>
+                <p><strong>Source:</strong> <a id="modalSourceLink" href="#" target="_blank">View Source Page</a></p>
+                <p><strong>Dimensions:</strong> <span id="modalDims"></span></p>
+              </div>
+            </div>
+            <div class="review-actions">
+              <label class="radio-group">
+                <input type="radio" name="reviewDecision" value="approved" id="decisionApproved">
+                <span>Approve</span>
+              </label>
+              <label class="radio-group">
+                <input type="radio" name="reviewDecision" value="rejected" id="decisionRejected">
+                <span>Reject</span>
+              </label>
+            </div>
+            <div class="rejection-reason" id="rejectionReasonDiv" hidden>
+              <label for="rejectionReason">Rejection Reason</label>
+              <select id="rejectionReason" aria-label="Rejection reason">
+                <option value="wrong_brand">Wrong Brand</option>
+                <option value="wrong_strength">Wrong Strength</option>
+                <option value="wrong_form">Wrong Dosage Form</option>
+                <option value="low_quality">Low Quality</option>
+                <option value="copyright_concern">Copyright Concern</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <textarea id="rejectionNote" placeholder="Additional notes..." rows="3" hidden></textarea>
+            <div class="modal-footer">
+              <button class="btn btn-secondary" id="modalCancel">Cancel</button>
+              <button class="btn btn-primary" id="modalSubmit">Submit</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Health Section -->
+    <section id="health" class="admin-section" aria-labelledby="health-title">
+      <h2 id="health-title" class="section-title">System Health</h2>
+      <p class="section-subtitle">API connectivity, database status, and system diagnostics</p>
+
+      <div class="stats-grid" id="healthStatsGrid"></div>
+
+      <div class="card">
+        <h3>Health Checks</h3>
+        <div class="table-container">
+          <table id="healthChecksTable">
+            <thead><tr><th>Component</th><th>Status</th><th>Details</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Actions Section -->
+    <section id="actions" class="admin-section" aria-labelledby="actions-title">
+      <h2 id="actions-title" class="section-title">Admin Actions</h2>
+      <p class="section-subtitle">Trigger jobs, manage data, and perform administrative tasks</p>
+
+      <div class="actions-grid">
+        <div class="action-card" data-aos="fade-up">
+          <h3>Data Synchronization</h3>
+          <div class="action-buttons">
+            <button class="btn btn-primary action-btn" data-job="sync-drugs">Sync NAFDAC Drugs</button>
+            <button class="btn btn-primary action-btn" data-job="import-clinical">Import Clinical Data</button>
+            <button class="btn btn-primary action-btn" data-job="sync-dailymed">Sync DailyMed Labels</button>
+            <button class="btn btn-primary action-btn" data-job="sync-news">Sync News</button>
+            <button class="btn btn-primary action-btn" data-job="import-alerts">Import Alerts</button>
+          </div>
+        </div>
+
+        <div class="action-card" data-aos="fade-up" data-aos-delay="100">
+          <h3>Map & Facilities</h3>
+          <div class="action-buttons">
+            <button class="btn btn-secondary action-btn" data-job="build-places">Build Places List</button>
+            <button class="btn btn-secondary action-btn" data-job="prefill-facilities" data-params='{"mode":"queue","maxBlocks":50}'>Process Facility Queue (50 blocks)</button>
+            <button class="btn btn-secondary action-btn" data-job="import-serpapi">Import Facilities (SerpAPI)</button>
+          </div>
+        </div>
+
+        <div class="action-card" data-aos="fade-up" data-aos-delay="200">
+          <h3>Medicine Images</h3>
+          <div class="action-buttons">
+            <button class="btn btn-accent action-btn" data-job="enrich-images">Enrich Missing Images</button>
+          </div>
+        </div>
+
+        <div class="action-card" data-aos="fade-up" data-aos-delay="300">
+          <h3>System Maintenance</h3>
+          <div class="action-buttons">
+            <button class="btn btn-ghost action-btn" data-job="cleanup-jobs">Cleanup Old Job Logs</button>
+            <button class="btn btn-ghost action-btn" data-job="cleanup-analytics">Cleanup Old Analytics</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" data-aos="fade-up" data-aos-delay="400">
+        <h3>Job Trigger Log</h3>
+        <div class="table-container">
+          <table id="triggerLogTable">
+            <thead><tr><th>Time</th><th>Job</th><th>Status</th><th>Details</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
+  <script type="module" src="/js/admin.js"></script>
+</body>
+</html>

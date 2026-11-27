@@ -6,6 +6,7 @@
  *   node scripts/sync-drugs.js                       # run the Apify actor, then import everything
  *   node scripts/sync-drugs.js --dataset <id>        # import an existing Apify dataset (no new run)
  *   node scripts/sync-drugs.js --file export.json    # import a JSON array file
+ *   node scripts/sync-drugs.js --max-items 500       # limit imported records (for weekly runs)
  *
  * Add --dry to any of the above to check the field mapping first.
  */
@@ -14,6 +15,7 @@ const fs = require('node:fs');
 const { normalizeNafdacRecord } = require('../src/lib/nafdac');
 const { sha256 } = require('../src/lib/helpers');
 const { KeyPool, parseKeys } = require('../src/lib/keypool');
+const { startJob } = require('../src/lib/jobrun');
 
 const API = 'https://api.apify.com/v2';
 const args = process.argv.slice(2);
@@ -22,7 +24,7 @@ const opt = (n) => { const i = args.indexOf(`--${n}`); return i >= 0 ? args[i + 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const tokens = parseKeys(process.env.APIFY_TOKENS, process.env.APIFY_TOKEN);
-const pool = new KeyPool({ provider: 'apify', keys: tokens });          // no call counting: Apify bills by usage, so we fail over on errors
+const pool = new KeyPool({ provider: 'apify', keys: tokens });
 
 async function apify(pathname, { method = 'GET', body, params = {}, token } = {}) {
   if (!token) throw new Error('APIFY_TOKEN (or APIFY_TOKENS=a,b) is missing in .env');
@@ -44,10 +46,10 @@ async function runActor() {
   if (process.env.APIFY_INPUT) {
     try { input = JSON.parse(process.env.APIFY_INPUT); } catch { throw new Error('APIFY_INPUT is not valid JSON'); }
   }
-  return pool.run(async (token) => {                                      // a run belongs to one token, so start AND poll with the same one
+  return pool.run(async (token) => {
     const started = (await apify(`/acts/${encodeURIComponent(actor)}/runs`, { method: 'POST', body: input, token })).data;
     console.log(`Apify run started: ${started.id}`);
-    for (let i = 0; i < 360; i++) {                                       // up to 30 minutes
+    for (let i = 0; i < 360; i++) {
       const run = (await apify(`/actor-runs/${started.id}`, { token })).data;
       if (run.status === 'SUCCEEDED') return { runId: run.id, datasetId: run.defaultDatasetId, token };
       if (['FAILED', 'ABORTED', 'TIMED-OUT'].includes(run.status)) throw new Error(`Apify run ${run.status}`);
@@ -74,6 +76,7 @@ async function datasetItems(datasetId, token) {
 
 async function main() {
   const dry = flag('dry');
+  const maxItems = flag('max-items') ? Number(opt('max-items')) : null;
   let items, runId = null, datasetId = opt('dataset'), token = tokens[0];
 
   if (opt('file')) {
@@ -85,7 +88,7 @@ async function main() {
   }
   console.log(`Fetched ${items.length} raw records.`);
 
-  const rows = new Map();                                // dedupe on source_record_id (last one wins)
+  const rows = new Map();
   const raws = new Map();
   const rejected = [];
   items.forEach((raw, index) => {
@@ -105,44 +108,48 @@ async function main() {
     return;
   }
 
+  const job = await startJob('sync-drugs');
   const store = require('../src/db');
   if (store.mode !== 'supabase') throw new Error('Supabase is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env');
   const db = store.client;
 
-  const { data: job, error: jobErr } = await db.from('sync_logs').insert({
-    source: 'NAFDAC Greenbook', job_name: 'nafdac_import', external_run_id: runId, records_seen: items.length,
-  }).select('id').single();
-  if (jobErr) throw jobErr;
+  try {
+    let imported = 0;
+    const errors = [];
+    let list = [...rows.values()];
+    if (maxItems) list = list.slice(0, maxItems);
 
-  let imported = 0;
-  const errors = [];
-  const list = [...rows.values()];
-  for (let i = 0; i < list.length; i += 500) {
-    const chunk = list.slice(i, i + 500);
-    const { error } = await db.from('drugs').upsert(chunk, { onConflict: 'source,source_record_id' });
-    if (error) { errors.push({ batch: i / 500, message: error.message }); continue; }
-    imported += chunk.length;
+    for (let i = 0; i < list.length; i += 500) {
+      const chunk = list.slice(i, i + 500);
+      const { error } = await db.from('drugs').upsert(chunk, { onConflict: 'source,source_record_id' });
+      if (error) { errors.push({ batch: i / 500, message: error.message }); continue; }
+      imported += chunk.length;
 
-    const rawChunk = chunk.map((r) => ({
-      source: r.source, source_record_id: r.source_record_id,
-      payload: raws.get(r.source_record_id), payload_hash: sha256(raws.get(r.source_record_id)),
-      fetched_at: new Date().toISOString(),
-    }));
-    const { error: rawErr } = await db.from('source_records').upsert(rawChunk, { onConflict: 'source,source_record_id' });
-    if (rawErr) errors.push({ batch: i / 500, raw: true, message: rawErr.message });
-    process.stdout.write(`\rImported ${imported}/${list.length}`);
+      const rawChunk = chunk.map((r) => ({
+        source: r.source, source_record_id: r.source_record_id,
+        payload: raws.get(r.source_record_id), payload_hash: sha256(raws.get(r.source_record_id)),
+        fetched_at: new Date().toISOString(),
+      }));
+      const { error: rawErr } = await db.from('source_records').upsert(rawChunk, { onConflict: 'source,source_record_id' });
+      if (rawErr) errors.push({ batch: i / 500, raw: true, message: rawErr.message });
+      process.stdout.write(`\rImported ${imported}/${list.length}`);
+    }
+    console.log();
+
+    const status = errors.length === 0 && rejected.length === 0 ? 'success' : imported > 0 ? 'partial' : 'failed';
+    await job.finish(status, {
+      records_seen: items.length,
+      records_saved: imported,
+      errors: errors.length + rejected.length,
+      details: { datasetId, rejected: rejected.slice(0, 100), errors: errors.slice(0, 20) }
+    });
+
+    console.log(`Done: ${status}. Imported ${imported}, rejected ${rejected.length}, batch errors ${errors.length}.`);
+    if (status === 'failed') process.exitCode = 1;
+  } catch (e) {
+    await job.finish('failed', { error_message: e.message });
+    throw e;
   }
-  console.log();
-
-  const status = errors.length === 0 && rejected.length === 0 ? 'succeeded' : imported > 0 ? 'completed_with_errors' : 'failed';
-  await db.from('sync_logs').update({
-    status, records_imported: imported, records_rejected: rejected.length + (list.length - imported),
-    completed_at: new Date().toISOString(),
-    details: { datasetId, rejected: rejected.slice(0, 100), errors: errors.slice(0, 20) },
-  }).eq('id', job.id);
-
-  console.log(`Done: ${status}. Imported ${imported}, rejected ${rejected.length}, batch errors ${errors.length}.`);
-  if (status === 'failed') process.exitCode = 1;
 }
 
 main().catch((e) => { console.error('Sync failed:', e.message); process.exitCode = 1; });

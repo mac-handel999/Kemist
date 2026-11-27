@@ -431,11 +431,20 @@ The service worker only handles same-origin requests. CDN scripts and fonts are 
 
 Check that the tile host is included in the Content Security Policy (`img-src`) configuration.
 
-If you switch tile providers, configure:
+Kemist now uses a multi-provider tile fallback chain (configured → CARTO → OpenStreetMap) with automatic switching on repeated errors. If you provide a custom `MAP_TILE_URL`, it will be tried first. Geoapify tiles are used when `GEOAPIFY_API_KEY` is set and no `MAP_TILE_URL` is provided.
+
+Configure custom tiles if needed:
 
 ```env
-MAP_TILE_URL=your_map_tile_url
-MAP_TILE_ATTRIBUTION=your_map_attribution
+MAP_TILE_URL=https://tile.openstreetmap.org/{z}/{x}/{y}.png
+MAP_TILE_ATTRIBUTION=&copy; OpenStreetMap contributors
+```
+
+Geoapify (tiles + place search) can be enabled with:
+
+```env
+GEOAPIFY_API_KEY=your_geoapify_key
+NOMINATIM_EMAIL=you@example.com
 ```
 
 Restart the server after updating `.env`.
@@ -447,6 +456,28 @@ For production, consider a dedicated provider such as:
 - [Geoapify](https://www.geoapify.com/)
 - [MapTiler](https://www.maptiler.com/)
 - [Stadia Maps](https://stadiamaps.com/)
+
+### Geofencing (Nearby Page)
+
+Kemist includes an optional foreground-only geofencing feature on the Nearby page. When enabled, it monitors your location (with consent) and shows toast notifications when you enter or exit a 300 m / 400 m hysteresis zone around pharmacies and hospitals in Nigeria.
+
+Configure geofencing behavior:
+
+```env
+GEOFENCE_ENTER_RADIUS=300
+GEOFENCE_EXIT_RADIUS=400
+GEOFENCE_COOLDOWN_MINUTES=30
+GEOFENCE_MIN_ACCURACY=150
+GEOFENCE_THROTTLE_MS=15000
+```
+
+- `GEOFENCE_ENTER_RADIUS`: Distance in meters to trigger an "enter" notification (default 300)
+- `GEOFENCE_EXIT_RADIUS`: Distance in meters to trigger an "exit" notification with hysteresis (default 400)
+- `GEOFENCE_COOLDOWN_MINUTES`: Cooldown per zone before another notification (default 30)
+- `GEOFENCE_MIN_ACCURACY`: Maximum GPS accuracy in meters to accept a fix (default 150)
+- `GEOFENCE_THROTTLE_MS`: Minimum time between position checks (default 15000)
+
+The feature is opt-in (user consent required), runs only while the Nearby page is visible (pauses when tab is hidden), and only works within Nigeria's bounding box. No background tracking or persistent location storage occurs.
 
 ### 3. `/api/meta` returns 500
 

@@ -134,7 +134,7 @@ const ICON = {
     if (name === 'about') { document.title = 'About · Kemist'; return AboutView(); }
     if (name === 'alerts') { document.title = 'Safety Alerts · Kemist'; return AlertsView(params); }
     if (name === 'report-medicine') { document.title = 'Report a Medicine · Kemist'; return ReportMedicineView(params); }
-    if (name === 'clinical') { document.title = 'Clinical Library · Kemist'; return ClinicalLibraryView(params); }
+    if (name === 'library') { document.title = 'Clinical Library · Kemist'; return ClinicalLibraryView(params); }
     if (name === 'ai') { document.title = 'AI Assistant · Kemist'; return AIAssistantView(params); }
     if (name === 'news') { document.title = 'Health News · Kemist'; return NewsView(params); }
     document.title = 'Kemist: check a medicine, find a pharmacy';
@@ -177,7 +177,7 @@ const ICON = {
               h('h3', null, 'Safety Alerts'),
               h('p', null, 'Official NAFDAC recalls, counterfeit warnings, and safety notices')
             ),
-            h('a', { class: 'action-card', href: '#/clinical' },
+            h('a', { class: 'action-card', href: '#/library' },
               h('div', { class: 'action-icon' }, icon('clinical')),
               h('h3', null, 'Clinical Library'),
               h('p', null, 'Drug indications, contraindications, interactions, and dosing info')
@@ -625,7 +625,19 @@ const ICON = {
           h('li', null,
             'Supabase (optional backend) — PostgreSQL & realtime (Apache-2.0 / MIT)')),
       h('div', { class: 'stack' }, h('h2', null, 'Your location'),
-        h('p', null, 'Kemist uses your location only to find places near you. It is not saved to your profile, and you can choose a city instead.')),
+        h('p', null, 'Kemist uses your location only to find places near you. It is not saved to your profile, and you can choose a city instead.'),
+        h('h3', null, 'Location alerts (geofencing)'),
+        h('p', null, 'You can optionally enable "Location alerts" on the Nearby page. When enabled:')),
+        h('ul', null,
+          h('li', null, 'Kemist watches your location only while the app is open in the foreground.'),
+          h('li', null, 'Your coordinates never leave your device and are not stored or sent to any server.'),
+          h('li', null, 'Alerts trigger only when you come within ~300 m of a pharmacy or hospital already shown on the map.'),
+          h('li', null, 'A 30-minute cooldown prevents repeated alerts for the same place.'),
+          h('li', null, 'Monitoring pauses automatically when you switch tabs, lock your screen, or close the app.'),
+          h('li', null, 'You can turn it off with one tap in the Nearby page header.'),
+          h('li', null, 'No background tracking, no wake locks, no persistent identifiers.'),
+        ),
+        h('p', null, 'This feature complies with the Nigeria Data Protection Act. Location data is personal data; we keep it on your device, process it only with your explicit consent, and do not share it.')),
       install,
       h('a', { class: 'btn', href: '#/report' }, 'Report a problem')));
   }
@@ -786,120 +798,496 @@ const ICON = {
 
   // ---------- Clinical Library ----------
   async function ClinicalLibraryView(params) {
-    const page = h('div', { class: 'page' }, loading('Loading clinical library'));
+    const page = h('div', { class: 'page library-page' });
     view.append(page);
-    try {
-      const search = params.get('q') || '';
-      const ingredient = params.get('ingredient');
-      
-      // Track clinical search
-      if (search) await trackEvent('clinical_drug_search', { query: search });
-      if (ingredient) await trackEvent('clinical_drug_search', { medicine_name: ingredient });
-      
-      // Load ingredients for the sidebar
-      const [{ data: ingredients }] = await Promise.all([
-        api('/api/clinical/ingredients?limit=200'),
-      ]);
-      
-      let labels = [];
-      if (ingredient) {
-        const res = await api(`/api/clinical/ingredient/${encodeURIComponent(ingredient)}`);
-        labels = res.data || [];
-      } else if (search) {
-        const res = await api(`/api/clinical/ingredients?search=${encodeURIComponent(search)}&limit=50`);
-        labels = res.data || [];
+
+    const isMobile = () => window.innerWidth < 900;
+    const ingredientParam = params.get('ingredient');
+    const labelIndexParam = parseInt(params.get('label_index')) || 0;
+    const searchParam = params.get('q') || '';
+
+    // State
+    let ingredients = [];
+    let labels = [];
+    let totalLabels = 0;
+    let products = [];
+    let selectedIngredient = ingredientParam;
+    let selectedLabelIndex = labelIndexParam;
+    let isLoading = false;
+    let searchDebounceTimer = null;
+    let abortController = null;
+
+    // Utility: sentence case for display
+    const toSentenceCase = (str) => str.toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+
+    // Utility: format date
+    const fmtDate = (d) => (d ? new Date(String(d).slice(0, 10) + 'T00:00:00').toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Unknown');
+
+    // Utility: truncate with read more
+    const truncateText = (text, maxLen = 600) => {
+      if (text.length <= maxLen) return { html: text, truncated: false };
+      const truncated = text.slice(0, maxLen).trimEnd();
+      return { html: truncated + '…', truncated: true };
+    };
+
+    // Render skeleton loader for detail panel
+    function renderDetailSkeleton() {
+      return h('div', { class: 'library-detail', 'aria-busy': 'true' },
+        h('div', { class: 'skeleton header' },
+          h('div', { class: 'skeleton-line wide' }),
+          h('div', { class: 'skeleton-line medium' }),
+          h('div', { class: 'skeleton-chips' }, Array(3).fill(0).map(() => h('div', { class: 'skeleton-chip' })))
+        ),
+        h('div', { class: 'skeleton banner' }, h('div', { class: 'skeleton-line full' })),
+        h('nav', { class: 'skeleton nav' }, Array(5).fill(0).map(() => h('div', { class: 'skeleton-chip' }))),
+        Array(5).fill(0).map(() => h('details', { class: 'skeleton section' },
+          h('summary', null, h('div', { class: 'skeleton-line narrow' })),
+          h('div', { class: 'skeleton-content' }, Array(3).fill(0).map(() => h('div', { class: 'skeleton-line' })))
+        )),
+        h('div', { class: 'skeleton section' },
+          h('div', { class: 'skeleton-line wide' }),
+          Array(3).fill(0).map(() => h('div', { class: 'skeleton-card' }))
+        )
+      );
+    }
+
+    // Render empty state for detail panel
+    function renderDetailEmpty() {
+      return h('div', { class: 'library-detail empty-state' },
+        h('div', { class: 'empty-icon' }, icon('clinical')),
+        h('h2', null, 'Select an ingredient'),
+        h('p', null, 'Choose an ingredient from the list to view its US FDA label information.'),
+        h('p', { class: 'hint' }, 'Use the search box or browse the A–Z list on the left.')
+      );
+    }
+
+    // Render error state for detail panel
+    function renderDetailError(message, retryFn) {
+      return h('div', { class: 'library-detail error-state', role: 'alert' },
+        h('div', { class: 'error-icon' }, icon('alert')),
+        h('h2', null, 'Failed to load'),
+        h('p', null, message),
+        h('button', { class: 'btn primary', onclick: retryFn }, icon('search'), ' Retry')
+      );
+    }
+
+    // Render ingredient sidebar
+    function renderSidebar() {
+      const groups = new Map();
+      for (const ing of ingredients) {
+        const first = ing.ingredient_key.charAt(0).toUpperCase();
+        if (!groups.has(first)) groups.set(first, []);
+        groups.get(first).push(ing);
       }
+      const letters = Array.from(groups.keys()).sort();
 
-      const CATEGORIES = [
-        { key: 'indications', label: 'Indications & Uses', icon: '📋', desc: 'What the medicine is used for' },
-        { key: 'contraindications', label: 'Contraindications', icon: '⚠️', desc: 'When not to use the medicine' },
-        { key: 'warnings', label: 'Warnings & Precautions', icon: '🔔', desc: 'Important safety warnings' },
-        { key: 'adverse_reactions', label: 'Adverse Reactions', icon: '📝', desc: 'Known side effects' },
-        { key: 'interactions', label: 'Drug Interactions', icon: '🔗', desc: 'Interactions with other medicines' },
-      ];
+      const jumpBar = h('div', { class: 'ingredient-jump', role: 'navigation', 'aria-label': 'Jump to letter' },
+        letters.map(l => h('a', { href: `#ingredient-group-${l}`, class: 'jump-link', 'data-letter': l }, l))
+      );
 
-      const SECTION_LABELS = {
-        indications: 'Indications & Uses',
-        contraindications: 'Contraindications',
-        warnings: 'Warnings & Precautions',
-        adverse_reactions: 'Adverse Reactions',
-        interactions: 'Drug Interactions',
-      };
-
-      function formatDate(d) {
-        return d ? new Date(d + 'T00:00:00').toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Unknown';
-      }
-
-      function renderLabelCard(label) {
-        const hasContent = Object.values(label.sections || {}).some(v => v && v.trim());
-        const media = label.media || [];
-        const mediaHtml = media.length ? h('div', { class: 'clinical-media' },
-          h('h4', null, 'DailyMed Label Images'),
-          h('p', { class: 'hint' }, 'Images are from the DailyMed label (US FDA) and may not represent the exact product packaging available in Nigeria.'),
-          h('div', { class: 'media-gallery' },
-            media.map(m => h('figure', { class: 'media-item' },
-              h('a', { href: m.url, target: '_blank', rel: 'noopener noreferrer', class: 'media-link', 'aria-label': `View ${m.name || 'DailyMed image'} full size` },
-                h('img', { src: m.url, alt: m.name || 'DailyMed label image', loading: 'lazy', width: '200', height: '200' })),
-              h('figcaption', null, m.name ? h('span', null, m.name) : null, m.source && h('a', { href: m.source, target: '_blank', rel: 'noopener noreferrer', class: 'media-source' }, 'View on DailyMed'))
-            ))
-          )
-        ) : null;
-        
-        return h('article', { class: 'clinical-card' },
-          h('div', { class: 'clinical-card-head' },
-            h('h3', null, label.title || label.ingredient_label || label.ingredient_key),
-            h('div', { class: 'clinical-card-meta' },
-              label.jurisdiction && h('span', { class: 'meta' }, label.jurisdiction),
-              label.effective_date && h('span', { class: 'meta' }, `Updated ${formatDate(label.effective_date)}`),
-              label.source && h('span', { class: 'meta' }, `Source: ${label.source}`)
-            )),
-          mediaHtml,
-          h('div', { class: 'clinical-card-body' },
-            CATEGORIES.map((cat) => {
-              const content = label.sections?.[cat.key];
-              if (!content || !content.trim()) return null;
-              return h('details', { class: 'clinical-section', open: cat.key === 'indications' },
-                h('summary', null, h('span', { class: 'section-icon' }, cat.icon), cat.label),
-                h('div', { class: 'section-content' }, content)
-              );
-            }).filter(Boolean),
-            hasContent ? null : h('div', { class: 'hint' }, 'No detailed sections available for this label.')
-          ),
-          label.source_url && h('a', { class: 'btn small', href: label.source_url, target: '_blank', rel: 'noopener noreferrer' }, 'View full label on DailyMed')
-        );
-      }
-
-      put(page,
-        h('a', { class: 'back', href: '#/check' }, icon('back'), 'Back to Check'),
-        h('div', { class: 'clinical-layout' },
-          h('aside', { class: 'clinical-sidebar' },
-            h('h2', null, 'Clinical Library'),
-            h('p', { class: 'hint' }, 'US FDA drug label information for active ingredients in the Kemist database.'),
-            h('form', { class: 'search', onsubmit: (e) => { e.preventDefault(); const q = document.getElementById('clinicalSearch').value; location.hash = `#/clinical?${new URLSearchParams({ q })}`; } },
-              h('input', { id: 'clinicalSearch', type: 'search', name: 'q', placeholder: 'Search ingredients, indications...', value: search, autocomplete: 'off' }),
-              h('button', { class: 'btn primary', type: 'submit' }, icon('search'))),
-            h('h3', null, 'Browse by Ingredient'),
-            h('div', { class: 'ingredient-list' }, ingredients.map((ing) => h('button', {
-              class: 'ingredient-btn' + (ingredient === ing.ingredient_key ? ' active' : ''),
-              type: 'button',
-              onclick: () => { location.hash = `#/clinical?${new URLSearchParams({ ingredient: ing.ingredient_key })}`; }
-            }, h('span', { class: 'ingredient-name' }, ing.label || ing.ingredient_key), h('span', { class: 'ingredient-count' }, `${ing.labels} label${ing.labels !== 1 ? 's' : ''}`)))),
-            h('div', { class: 'callout', style: 'margin-top:16px' },
-              h('strong', null, 'Important: '),
-              'This is US FDA labeling data (openFDA/DailyMed). It may differ from NAFDAC-approved information for Nigerian products. Always consult a pharmacist or doctor.'
+      const list = h('div', { class: 'ingredient-list', role: 'listbox', 'aria-label': 'Ingredients' },
+        letters.map(letter => {
+          const items = groups.get(letter);
+          return h('div', { class: 'ingredient-group', id: `ingredient-group-${letter}` },
+            h('h4', { class: 'ingredient-group-label' }, letter),
+            h('div', { class: 'ingredient-items', role: 'group' },
+              items.map(ing => h('button', {
+                class: 'ingredient-btn' + (selectedIngredient === ing.ingredient_key ? ' active' : ''),
+                type: 'button',
+                role: 'option',
+                'aria-selected': selectedIngredient === ing.ingredient_key,
+                'data-ingredient': ing.ingredient_key,
+                onclick: () => selectIngredient(ing.ingredient_key),
+                onkeydown: (e) => handleIngredientKeydown(e, ing.ingredient_key)
+              }, h('span', { class: 'ingredient-name' }, toSentenceCase(ing.label || ing.ingredient_key)), h('span', { class: 'ingredient-count' }, `${ing.labels} label${ing.labels !== 1 ? 's' : ''}`)))
             )
-          ),
-          h('main', { class: 'clinical-main' },
-            h('h1', null, ingredient ? `${ingredient}` : 'Clinical Drug Information'),
-            ingredient && h('p', { class: 'lead' }, `Showing ${labels.length} label${labels.length !== 1 ? 's' : ''} for "${ingredient}".`),
-            labels.length === 0
-              ? h('div', { class: 'empty' }, 'No clinical labels found. Try a different search or ingredient.')
-              : h('div', { class: 'stack' }, labels.map(renderLabelCard))
+          );
+        })
+      );
+
+      return h('aside', { class: 'library-sidebar', role: 'complementary', 'aria-label': 'Ingredient index' },
+        h('div', { class: 'sidebar-header' },
+          h('h2', null, 'Clinical Library'),
+          h('p', { class: 'hint' }, 'US FDA drug label information for active ingredients.')
+        ),
+        h('div', { class: 'sidebar-search' },
+          h('label', { for: 'ingredientSearch', class: 'sr-only' }, 'Search ingredients'),
+          h('div', { class: 'search-input-wrap' },
+            h('input', {
+              id: 'ingredientSearch',
+              type: 'search',
+              placeholder: 'Search ingredients…',
+              value: searchParam,
+              autocomplete: 'off',
+              oninput: (e) => handleSearchInput(e.target.value),
+              onkeydown: (e) => { if (e.key === 'Escape') clearSearch(); }
+            }),
+            searchParam && h('button', { type: 'button', class: 'search-clear', 'aria-label': 'Clear search', onclick: clearSearch }, icon('cross'))
+          )
+        ),
+        jumpBar,
+        list,
+        h('div', { class: 'sidebar-footer' },
+          h('p', { class: 'hint' }, 'Data from openFDA/DailyMed (US FDA). Not NAFDAC leaflets.')
+        )
+      );
+    }
+
+    // Render detail panel header
+    function renderDetailHeader(ingredient, label) {
+      const chips = [
+        h('span', { class: 'chip' }, 'openFDA'),
+        label.effective_date && h('span', { class: 'chip' }, `Label ${fmtDate(label.effective_date)}`),
+        totalLabels > 1 && h('span', { class: 'chip' }, `${totalLabels} label${totalLabels !== 1 ? 's' : ''}`)
+      ].filter(Boolean);
+
+      return h('header', { class: 'detail-header' },
+        h('div', { class: 'detail-title-wrap' },
+          h('h1', null, toSentenceCase(ingredient)),
+          h('div', { class: 'detail-chips' }, chips)
+        ),
+        h('div', { class: 'detail-actions' },
+          h('button', {
+            class: 'btn secondary',
+            onclick: () => askAIAboutIngredient(ingredient)
+          }, icon('ai'), ' Ask AI about this'),
+          h('button', {
+            class: 'btn ghost',
+            onclick: () => copyDetailLink(ingredient)
+          }, icon('external'), ' Copy link')
+        )
+      );
+    }
+
+    // Render disclaimer banner
+    function renderDisclaimer() {
+      return h('div', { class: 'detail-disclaimer', role: 'note' },
+        h('strong', null, 'US label information. '),
+        'Not the NAFDAC leaflet for any Nigerian product. Not medical advice.'
+      );
+    }
+
+    // Render label selector (if multiple labels)
+    function renderLabelSelector() {
+      if (totalLabels <= 1) return null;
+      const options = Array.from({ length: totalLabels }, (_, i) => i + 1);
+      return h('div', { class: 'label-selector' },
+        h('label', { for: 'labelSelect', class: 'sr-only' }, 'Select label version'),
+        h('select', {
+          id: 'labelSelect',
+          value: String(selectedLabelIndex),
+          onchange: (e) => selectLabelIndex(parseInt(e.target.value))
+        }, options.map((num, i) => h('option', { value: String(i) }, `Label ${num} ${labels[i]?.effective_date ? `(${fmtDate(labels[i].effective_date)})` : ''}`)))
+      );
+    }
+
+    // Render section navigation (sticky)
+    function renderSectionNav() {
+      const sections = [
+        { id: 'indications', label: 'Uses', icon: '📋' },
+        { id: 'contraindications', label: 'Who should not use it', icon: '⚠️' },
+        { id: 'warnings', label: 'Warnings', icon: '🔔' },
+        { id: 'adverse_reactions', label: 'Side effects', icon: '📝' },
+        { id: 'interactions', label: 'Interactions', icon: '🔗' }
+      ];
+      return h('nav', { class: 'section-nav', role: 'navigation', 'aria-label': 'Label sections' },
+        h('div', { class: 'section-nav-inner' },
+          sections.map(s => h('a', {
+            href: `#section-${s.id}`,
+            class: 'section-nav-link',
+            'data-section': s.id,
+            onclick: (e) => { e.preventDefault(); scrollToSection(s.id); }
+          }, h('span', { class: 'section-icon', 'aria-hidden': 'true' }, s.icon), s.label)),
+          h('div', { class: 'section-nav-actions' },
+            h('button', { type: 'button', class: 'btn ghost small', onclick: () => toggleAllSections(true) }, 'Expand all'),
+            h('button', { type: 'button', class: 'btn ghost small', onclick: () => toggleAllSections(false) }, 'Collapse all')
           )
         )
       );
+    }
+
+    // Render a single section accordion
+    function renderSection(label, key, title, icon) {
+      const content = label.sections?.[key];
+      if (!content || !content.trim()) return null;
+
+      const { html, truncated } = truncateText(content, 600);
+      const sectionId = `section-${key}`;
+
+      return h('details', { class: 'clinical-section', id: sectionId, open: key === 'indications' },
+        h('summary', null, h('span', { class: 'section-icon', 'aria-hidden': 'true' }, icon), title),
+        h('div', { class: 'section-content' },
+          h('div', { class: 'section-text', style: 'white-space:pre-line;overflow-wrap:anywhere' }, html),
+          truncated && h('button', { class: 'read-more', type: 'button', onclick: (e) => toggleReadMore(e, content) }, 'Read more'),
+          label.source_url && h('a', { class: 'source-link', href: label.source_url, target: '_blank', rel: 'noopener noreferrer' }, icon('external'), ' View full label on DailyMed')
+        )
+      );
+    }
+
+    // Render Registered in Nigeria section
+    function renderNigeriaSection() {
+      if (!products.length) return null;
+
+      const displayProducts = products.slice(0, 10);
+      const hasMore = products.length > 10;
+
+      return h('section', { class: 'nigeria-section', id: 'section-nigeria' },
+        h('div', { class: 'nigeria-header' },
+          h('h2', null, 'Registered in Nigeria'),
+          h('span', { class: 'nigeria-count' }, `${products.length} product${products.length !== 1 ? 's' : ''}`)
+        ),
+        h('div', { class: 'nigeria-grid' },
+          displayProducts.map(p => h('article', { class: 'nigeria-card' },
+            h('div', { class: 'nigeria-card-head' },
+              h('h3', null, p.product_name || 'Unnamed product'),
+              h('div', { class: 'nigeria-meta' },
+                p.strength && h('span', { class: 'meta' }, p.strength),
+                p.dosage_form && h('span', { class: 'meta' }, p.dosage_form),
+                p.company && h('span', { class: 'meta' }, p.company)
+              ))
+            ,
+            h('div', { class: 'nigeria-card-body' },
+              h('div', { class: 'nigeria-tags' },
+                p.nrn && h('span', { class: 'nrn-tag' }, p.nrn),
+                p.verdict === 'ok' && h('span', { class: 'status-pill ok' }, 'Valid'),
+                p.verdict === 'warn' && h('span', { class: 'status-pill warn' }, 'Caution'),
+                p.verdict === 'bad' && h('span', { class: 'status-pill bad' }, 'Alert')
+              ),
+              h('a', { class: 'btn small', href: `#/check/${p.id}`, 'aria-label': `View ${p.product_name} details` }, 'View')
+            )
+          ))),
+        hasMore && h('button', { class: 'btn secondary', onclick: () => showMoreProducts() }, `Show ${products.length - 10} more`)
+      );
+    }
+
+    // Render full detail panel
+    function renderDetailPanel() {
+      if (!selectedIngredient) return renderDetailEmpty();
+      if (isLoading) return renderDetailSkeleton();
+
+      const label = labels[0];
+      if (!label) return renderDetailError('No label data available', () => loadIngredientDetail(selectedIngredient));
+
+      return h('main', { class: 'library-detail', role: 'main' },
+        renderDetailHeader(selectedIngredient, label),
+        renderDisclaimer(),
+        renderLabelSelector(),
+        renderSectionNav(),
+        h('div', { class: 'detail-sections' },
+          renderSection(label, 'indications', 'Uses', '📋'),
+          renderSection(label, 'contraindications', 'Who should not use it', '⚠️'),
+          renderSection(label, 'warnings', 'Warnings', '🔔'),
+          renderSection(label, 'adverse_reactions', 'Side effects', '📝'),
+          renderSection(label, 'interactions', 'Interactions', '🔗')
+        ),
+        renderNigeriaSection()
+      );
+    }
+
+    // Render full page layout
+    function renderPage() {
+      const sidebar = renderSidebar();
+      const detail = renderDetailPanel();
+
+      if (isMobile()) {
+        // Mobile: show sidebar or detail based on state
+        return h('div', { class: 'library-layout mobile' },
+          selectedIngredient ? h('button', { class: 'mobile-back', onclick: () => selectIngredient(null), 'aria-label': 'Back to ingredient list' }, icon('back'), ' Ingredients') : null,
+          selectedIngredient ? detail : sidebar
+        );
+      } else {
+        // Desktop: two columns
+        return h('div', { class: 'library-layout desktop' }, sidebar, detail);
+      }
+    }
+
+    // Event handlers
+    function handleSearchInput(value) {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(() => {
+        const newParams = new URLSearchParams();
+        if (value.trim()) newParams.set('q', value.trim());
+        location.hash = `#/library?${newParams.toString()}`;
+      }, 250);
+    }
+
+    function clearSearch() {
+      const input = document.getElementById('ingredientSearch');
+      if (input) input.value = '';
+      const newParams = new URLSearchParams();
+      location.hash = `#/library?${newParams.toString()}`;
+    }
+
+    async function selectIngredient(key) {
+      if (key === selectedIngredient) return;
+      selectedIngredient = key;
+      selectedLabelIndex = 0;
+      const newParams = new URLSearchParams();
+      if (key) newParams.set('ingredient', key);
+      if (searchParam) newParams.set('q', searchParam);
+      location.hash = `#/library?${newParams.toString()}`;
+      await loadIngredientDetail(key);
+      renderPageIntoDOM();
+    }
+
+    async function selectLabelIndex(index) {
+      if (index === selectedLabelIndex) return;
+      selectedLabelIndex = index;
+      const newParams = new URLSearchParams();
+      if (selectedIngredient) newParams.set('ingredient', selectedIngredient);
+      if (selectedLabelIndex > 0) newParams.set('label_index', String(selectedLabelIndex));
+      if (searchParam) newParams.set('q', searchParam);
+      location.hash = `#/library?${newParams.toString()}`;
+      await loadIngredientDetail(selectedIngredient, selectedLabelIndex);
+      renderPageIntoDOM();
+    }
+
+    function handleIngredientKeydown(e, key) {
+      const items = document.querySelectorAll('.ingredient-btn');
+      const index = Array.from(items).findIndex(btn => btn.dataset.ingredient === key);
+      if (index === -1) return;
+
+      let newIndex = index;
+      if (e.key === 'ArrowDown') newIndex = Math.min(index + 1, items.length - 1);
+      else if (e.key === 'ArrowUp') newIndex = Math.max(index - 1, 0);
+      else if (e.key === 'Home') newIndex = 0;
+      else if (e.key === 'End') newIndex = items.length - 1;
+      else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectIngredient(key); return; }
+      else return;
+
+      e.preventDefault();
+      items[newIndex]?.focus();
+    }
+
+    function scrollToSection(id) {
+      const el = document.getElementById(`section-${id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Update active nav link
+        document.querySelectorAll('.section-nav-link').forEach(a => a.classList.toggle('active', a.dataset.section === id));
+      }
+    }
+
+    function toggleAllSections(open) {
+      document.querySelectorAll('.clinical-section').forEach(d => d.open = open);
+    }
+
+    function toggleReadMore(e, fullContent) {
+      const btn = e.target;
+      const contentDiv = btn.parentElement.querySelector('.section-text');
+      if (btn.textContent === 'Read more') {
+        contentDiv.textContent = fullContent;
+        btn.textContent = 'Show less';
+      } else {
+        const { html } = truncateText(fullContent, 600);
+        contentDiv.textContent = html.replace(/…$/, '');
+        btn.textContent = 'Read more';
+      }
+    }
+
+    function askAIAboutIngredient(ingredient) {
+      const question = `Tell me about ${toSentenceCase(ingredient)} - what is it used for, warnings, side effects, and interactions?`;
+      const params = new URLSearchParams({ q: question });
+      location.hash = `#/ai?${params.toString()}`;
+      trackEvent('clinical_ask_ai', { ingredient });
+    }
+
+    function copyDetailLink(ingredient) {
+      const url = `${location.origin}${location.pathname}#/library/${encodeURIComponent(ingredient)}`;
+      navigator.clipboard.writeText(url).then(() => {
+        const toast = h('div', { class: 'toast' }, 'Link copied!');
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2000);
+      });
+    }
+
+    function showMoreProducts() {
+      // For now just show all - could be enhanced with modal
+      renderPageIntoDOM();
+    }
+
+    // Load ingredient detail
+    async function loadIngredientDetail(key, labelIndex = 0) {
+      if (!key) {
+        labels = [];
+        totalLabels = 0;
+        products = [];
+        renderPageIntoDOM();
+        return;
+      }
+
+      isLoading = true;
+      renderPageIntoDOM();
+
+      try {
+        if (abortController) abortController.abort();
+        abortController = new AbortController();
+
+        const res = await api(`/api/clinical/ingredient/${encodeURIComponent(key)}?label_index=${labelIndex}&limit=3`, { signal: abortController.signal });
+        labels = res.data || [];
+        totalLabels = res.count || 0;
+        products = res.products || [];
+        selectedLabelIndex = res.label_index || 0;
+      } catch (e) {
+        if (e.name !== 'AbortError') {
+          labels = [];
+          totalLabels = 0;
+          products = [];
+        }
+      } finally {
+        isLoading = false;
+        renderPageIntoDOM();
+      }
+    }
+
+    // Render page into DOM
+    function renderPageIntoDOM() {
+      put(page, renderPage());
+
+      // Focus management for mobile
+      if (isMobile() && selectedIngredient) {
+        const backBtn = page.querySelector('.mobile-back');
+        if (backBtn) backBtn.focus();
+      }
+
+      // Highlight active nav link on scroll
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const id = entry.target.id.replace('section-', '');
+            document.querySelectorAll('.section-nav-link').forEach(a => a.classList.toggle('active', a.dataset.section === id));
+          }
+        });
+      }, { rootMargin: '-100px 0px -66%' });
+      document.querySelectorAll('.clinical-section, .nigeria-section').forEach(el => observer.observe(el));
+    }
+
+    // Initialize
+    try {
+      // Track
+      if (ingredientParam) await trackEvent('clinical_drug_search', { medicine_name: ingredientParam });
+      if (searchParam) await trackEvent('clinical_drug_search', { query: searchParam });
+
+      // Load ingredients for sidebar
+      const res = await api('/api/clinical/ingredients?limit=200');
+      ingredients = (res.data || []).sort((a, b) => a.ingredient_key.localeCompare(b.ingredient_key));
+
+      // Load detail if ingredient selected
+      if (ingredientParam) {
+        await loadIngredientDetail(ingredientParam, labelIndexParam);
+      }
+
+      renderPageIntoDOM();
+
+      // Handle window resize for mobile/desktop switch
+      let resizeTimer;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(renderPageIntoDOM, 100);
+      }, { passive: true });
+
     } catch (e) {
-      page.replaceChildren(h('a', { class: 'back', href: '#/check' }, icon('back'), 'Back to Check'), h('div', { class: 'msg err', role: 'alert' }, e.message));
+      page.replaceChildren(h('div', { class: 'msg err', role: 'alert' }, e.message));
     }
   }
 
@@ -1242,8 +1630,8 @@ const ICON = {
     const GLYPH = { pharmacy: '+', hospital: 'H', clinic: 'C', doctors: 'C', laboratory: 'L' };
     const CITIES = [['Lagos', 6.5244, 3.3792], ['Abuja', 9.0765, 7.3986], ['Port Harcourt', 4.8156, 7.0498], ['Ibadan', 7.3775, 3.947], ['Kano', 12.0022, 8.592], ['Enugu', 6.4584, 7.5464], ['Benin City', 6.335, 5.6037], ['Kaduna', 10.5105, 7.4165], ['Owerri', 5.484, 7.0351], ['Aba', 5.1066, 7.3667], ['Onitsha', 6.1498, 6.7857], ['Calabar', 4.9757, 8.3417], ['Uyo', 5.0377, 7.9128], ['Ilorin', 8.4966, 4.5421], ['Jos', 9.8965, 8.8583], ['Warri', 5.5167, 5.75], ['Abeokuta', 7.1475, 3.3619], ['Maiduguri', 11.8333, 13.15]];
 
-    const s = { map: null, layer: null, me: null, filter: 'all', center: null, items: [], markers: new Map(), ready: false, seq: 0, radius: 5000 };
-    const msg = $('#mapMsg'), list = $('#facList'), areaBtn = $('#areaBtn');
+    const s = { map: null, layer: null, me: null, filter: 'all', center: null, items: [], markers: new Map(), ready: false, seq: 0, radius: 5000, geofence: null, geofenceEnabled: false };
+    const msg = $('#mapMsg'), list = $('#facList'), areaBtn = $('#areaBtn'), geofenceToggle = $('#geofenceToggle'), geofenceIndicator = $('#geofenceIndicator');
 
     const say = (text) => { msg.hidden = !text; msg.textContent = text || ''; };
     const dist = (m) => (m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`);
@@ -1281,33 +1669,28 @@ const ICON = {
     async function doInit() {
       try { await waitForLeaflet(); }
       catch (e) { nearbyEl.classList.add('no-map'); throw e; }       // no map: the list becomes the main view
-      const tileUrl = (state.meta && state.meta.tile_url) || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-      const tileAttr = (state.meta && state.meta.tile_attribution) || '\u00a9 OpenStreetMap contributors';
       s.map = L.map('map', { zoomControl: false }).setView([9.08, 8.68], 6);       // all of Nigeria
       L.control.zoom({ position: 'bottomright' }).addTo(s.map);
-      const tiles = L.tileLayer(tileUrl, { maxZoom: 19, attribution: tileAttr }).addTo(s.map);
       s.layer = L.layerGroup().addTo(s.map);
       s.map.on('moveend', () => {
         if (!s.center || !s.map) return;
         const c = s.map.getCenter();
         areaBtn.hidden = s.map.distance(c, [s.center.lat, s.center.lng]) < 1500;
       });
-      
-      // Track tile load success/failure
-      let ok = 0, bad = 0, warned = false;
-      tiles.on('tileload', () => { ok++; });
-      tiles.on('tileerror', () => {
-        bad++;
-        if (!warned && ok === 0 && bad >= 6) {
-          warned = true;
-          // show this in the map status area and keep it there
-          const msgEl = $('#mapMsg');
-          if (msgEl) {
-            msgEl.textContent = 'The map pictures could not load on this network. The list of places below still works. Try another network, turn off any VPN or ad blocker, or open Kemist in Chrome.';
-          }
+
+      // Initialize TileChain for multi-provider fallback
+      s.tileChain = new window.TileChain(s.map, {
+        getTheme: () => document.documentElement.getAttribute('data-theme') || 'light',
+        onSwitch: (provider, index) => {
+          console.warn('[Nearby] Switched to tile provider:', provider.name);
+        },
+        onAllFailed: () => {
+          nearbyEl.classList.add('no-map');
+          say('Map pictures cannot load on this connection. Places are still listed below.');
         }
       });
-      
+      await s.tileChain.init();
+
       s.ready = true;
     }
 
@@ -1365,6 +1748,19 @@ const ICON = {
         if (mine !== s.seq) return;
         s.items = r.data;
         render();
+        
+        // Initialize or update geofence with loaded facilities (pharmacies and hospitals only)
+        const geofenceZones = s.items
+          .filter(f => (f.type === 'pharmacy' || f.type === 'hospital') && f.lat && f.lng)
+          .map(f => ({
+            id: f.id,
+            name: f.name,
+            lat: f.lat,
+            lng: f.lng,
+            type: f.type,
+            address: f.address
+          }));
+        updateGeofence(geofenceZones);
         
         // Track facility search
         await trackEvent('facility_search', { query: `${t?.[1] || 'all'} near ${center.lat.toFixed(4)},${center.lng.toFixed(4)}`, page: '#/nearby' });
@@ -1460,8 +1856,173 @@ const ICON = {
       dlg.showModal();
     }
 
+    // Geofencing functions
+    function updateGeofence(zones) {
+      if (!window.Geofence) return;
+      
+      if (!s.geofence) {
+        s.geofence = new window.Geofence({
+          zones: zones,
+          onEvent: handleGeofenceEvent
+        });
+      } else {
+        s.geofence.setZones(zones);
+      }
+      
+      // Start geofence if enabled
+      if (s.geofenceEnabled && s.geofence) {
+        s.geofence.start();
+        updateGeofenceUI(true);
+      }
+    }
+
+    function handleGeofenceEvent(event) {
+      if (event.type === 'enter') {
+        showGeofenceToast(event);
+      } else if (event.type === 'bounds') {
+        showToast(event.message, 'info');
+      } else if (event.type === 'error') {
+        console.warn('[Geofence] Error:', event.error);
+      }
+    }
+
+    function showGeofenceToast(event) {
+      const { zone, distance } = event;
+      const typeLabel = zone.type === 'pharmacy' ? 'pharmacy' : 'hospital';
+      const message = `You are near ${zone.name} (about ${distance} m). Check a medicine?`;
+      
+      const toast = h('div', { class: 'geofence-toast', role: 'alert', 'aria-live': 'polite' },
+        h('div', { class: 'toast-content' },
+          h('strong', null, `Nearby ${typeLabel}`),
+          h('p', null, message)
+        ),
+        h('div', { class: 'toast-actions' },
+          h('a', { class: 'btn small primary', href: dirHref({ lat: zone.lat, lng: zone.lng }), target: '_blank', rel: 'noopener noreferrer' }, icon('route'), ' Directions'),
+          h('button', { class: 'btn small', type: 'button', onclick: () => location.hash = `#/check/${zone.id}` }, icon('search'), ' Check Medicine'),
+          h('button', { class: 'btn small ghost', type: 'button', onclick: (e) => e.target.closest('.geofence-toast').remove() }, icon('cross'), ' Dismiss')
+        )
+      );
+      
+      // Add to toast container or create one
+      let container = $('#toastContainer');
+      if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.style.cssText = 'position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; flex-direction: column; gap: 8px; pointer-events: none; max-width: 90vw; width: 360px;';
+        document.body.appendChild(container);
+      }
+      container.appendChild(toast);
+      
+      // Auto-dismiss after 30 seconds
+      setTimeout(() => {
+        if (toast.parentNode) toast.remove();
+      }, 30000);
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = h('div', { class: `toast toast-${type}`, role: 'alert', 'aria-live': 'polite' },
+        h('span', null, message),
+        h('button', { class: 'btn small ghost', type: 'button', onclick: (e) => e.target.closest('.toast').remove() }, icon('cross'))
+      );
+      
+      let container = $('#toastContainer');
+      if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.style.cssText = 'position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; flex-direction: column; gap: 8px; pointer-events: none; max-width: 90vw; width: 360px;';
+        document.body.appendChild(container);
+      }
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+        if (toast.parentNode) toast.remove();
+      }, 10000);
+    }
+
+    function toggleGeofence() {
+      if (!s.geofence) {
+        showToast('Load facilities first to enable geofencing', 'info');
+        return;
+      }
+      
+      if (s.geofenceEnabled) {
+        s.geofence.stop();
+        s.geofenceEnabled = false;
+        updateGeofenceUI(false);
+        showToast('Location alerts turned off', 'info');
+      } else {
+        // Show consent dialog on first enable
+        const consentGiven = localStorage.getItem('kemist-geofence-consent');
+        if (!consentGiven) {
+          showConsentDialog();
+        } else {
+          enableGeofence();
+        }
+      }
+    }
+
+    function showConsentDialog() {
+      const dlg = document.createElement('dialog');
+      dlg.className = 'consent-dialog';
+      dlg.innerHTML = `
+        <div class="dlg">
+          <h2>Enable Location Alerts?</h2>
+          <p>Kemist can notify you when you're near a pharmacy or hospital while this app is open.</p>
+          <ul style="margin: 12px 0; padding-left: 20px; font-size: 0.9rem; color: var(--muted);">
+            <li>Only works while Kemist is open in the foreground</li>
+            <li>Location never leaves your device</li>
+            <li>No tracking or background monitoring</li>
+            <li>Alerts pause when you switch apps or lock screen</li>
+            <li>You can turn off anytime with one tap</li>
+          </ul>
+          <p style="font-size: 0.85rem; color: var(--muted);">See <a href="#/about" onclick="this.closest('dialog').close(); location.hash='#/about';">Privacy Policy</a> for details.</p>
+          <div class="actions" style="margin-top: 16px; display: flex; gap: 8px; justify-content: flex-end;">
+            <button class="btn" onclick="this.closest('dialog').close()">Cancel</button>
+            <button class="btn primary" onclick="this.closest('dialog').close(); window.Kemist?.Nearby?.enableGeofence?.();">Allow</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(dlg);
+      dlg.showModal();
+      
+      dlg.addEventListener('close', () => dlg.remove());
+    }
+
+    function enableGeofence() {
+      localStorage.setItem('kemist-geofence-consent', 'true');
+      s.geofenceEnabled = true;
+      s.geofence.start();
+      updateGeofenceUI(true);
+      showToast('Location alerts turned on. You\'ll be notified when near a pharmacy or hospital.', 'success');
+    }
+
+    function updateGeofenceUI(enabled) {
+      const toggle = $('#geofenceToggle');
+      const indicator = $('#geofenceIndicator');
+      
+      if (toggle) {
+        toggle.setAttribute('aria-pressed', String(enabled));
+        toggle.textContent = enabled ? 'Location on' : 'Location alerts';
+        toggle.classList.toggle('active', enabled);
+      }
+      
+      if (indicator) {
+        indicator.hidden = !enabled;
+      }
+    }
+
+    // Expose for consent dialog
+    window.Kemist = window.Kemist || {};
+    window.Kemist.Nearby = {
+      enableGeofence: enableGeofence
+    };
+
     function show() {
       buildChips();
+      // Add geofencing toggle to tools if not already added
+      if (!$('#geofenceToggle') && geofenceToggle) {
+        geofenceToggle.addEventListener('click', toggleGeofence);
+      }
       init().then(() => { setTimeout(() => s.map.invalidateSize(), 50); }).catch((e) => say(e.message));
       if (!s.center && navigator.permissions && navigator.permissions.query) {
         navigator.permissions.query({ name: 'geolocation' }).then((r) => { if (r.state === 'granted' && !s.center) locate(); }).catch(() => {});
@@ -1474,7 +2035,7 @@ const ICON = {
         if (chipsEl) {
           const searchWrap = h('div', { class: 'place-search' },
             h('input', { id: 'placeSearch', type: 'search', placeholder: 'Search for a place (e.g. "Victoria Island, Lagos")', 'aria-label': 'Search for a place', autocomplete: 'off' }),
-            h('button', { class: 'btn small', type: 'button', onclick: () => searchPlace($('#placeSearch').value) }, icon('search'), 'Search'));
+            h('button', { class: 'btn small', type: 'button', onclick: () => searchPlace($('#placeSearch').value) }, icon('search'), ' Search'));
           chipsEl.insertAdjacentElement('afterend', searchWrap);
           $('#placeSearch').addEventListener('keydown', (e) => { if (e.key === 'Enter') searchPlace(e.target.value); });
         }
@@ -1488,7 +2049,7 @@ const ICON = {
     $('#locateBtn').addEventListener('click', locate);
     $('#emergencyBtn').addEventListener('click', emergency);
     areaBtn.addEventListener('click', () => { const c = s.map.getCenter(); load({ lat: c.lat, lng: c.lng }); });
-    return { show };
+    return { show, retryMap: () => s.tileChain?.retry() };
   })();
 
   // ---------- startup ----------

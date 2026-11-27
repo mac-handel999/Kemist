@@ -56,23 +56,38 @@ router.get('/by-drug/:id', async (req, res, next) => {
 router.get('/ingredients', async (req, res, next) => {
   try {
     const rows = await clinical.listIngredients(cleanText(String(req.query.q || ''), 60));
+    // Sort alphabetically by ingredient_key for consistent A-Z grouping
+    rows.sort((a, b) => a.ingredient_key.localeCompare(b.ingredient_key));
     res.json({ count: rows.length, data: rows, note: NOTE });
   } catch (e) { next(e); }
 });
 
 // GET /api/clinical/ingredient/paracetamol : US label text + Nigerian registered products with this single ingredient
+// Query params: label_index (0-based), limit (default 3, max 10)
 router.get('/ingredient/:key', async (req, res, next) => {
   try {
     const key = canonicalIngredient(cleanText(String(req.params.key || ''), 60));
     if (!key) return res.status(400).json({ error: 'Invalid ingredient.' });
-    const labels = await clinical.getByIngredient(key, 3);
-    if (!labels.length) return res.status(404).json({ error: 'No label information for this ingredient yet.' });
+
+    const labelLimit = Math.min(Math.max(parseInt(req.query.limit) || 3, 1), 10);
+    const labelIndex = Math.max(parseInt(req.query.label_index) || 0, 0);
+
+    // Get all labels first to know total count, then slice for pagination
+    const allLabels = await clinical.getByIngredient(key, labelLimit + labelIndex);
+    if (!allLabels.length) return res.status(404).json({ error: 'No label information for this ingredient yet.' });
+
+    const labels = allLabels.slice(labelIndex, labelIndex + labelLimit);
+
     const found = await store.searchDrugs(key, 50, 0);
     const products = found.filter((d) => singleIngredientKey(d.active_ingredients) === key).slice(0, 30).map(withVerdict);
+
     const enrichedLabels = labels.map((r) => ({ source: r.source, jurisdiction: r.jurisdiction, title: r.title, effective_date: r.effective_date, label_version: r.label_version, source_url: r.source_url, source_record_id: r.source_record_id, sections: sectionsOf(r) }));
     const enriched = await enrichWithMedia(enrichedLabels);
+
     res.json({
-      count: enriched.length,
+      count: allLabels.length,
+      label_index: labelIndex,
+      label_limit: labelLimit,
       data: enriched,
       ingredient_key: key,
       note: NOTE,

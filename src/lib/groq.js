@@ -1,6 +1,6 @@
 'use strict';
 /** Groq chat client (OpenAI-compatible) with key failover. Llama 3.3 70B was shut down in Aug 2026, so the default is gpt-oss-120b. */
-const { KeyPool, parseKeys } = require('./keypool');
+const { KeyPool, parseKeys, classifyError, monthOf } = require('./keypool');
 
 const URL_ = 'https://api.groq.com/openai/v1/chat/completions';
 let pool = null;
@@ -52,4 +52,80 @@ async function chat(messages, { maxTokens = 700 } = {}) {
   });
 }
 
-module.exports = { chat, configured, model };
+/** Server-Sent Events streaming. Yields tokens as they arrive. */
+async function *chatStream(messages, { maxTokens = 700, signal } = {}) {
+  const p = getPool();
+  if (!p) throw new Error('GROQ_API_KEY is not set');
+  const base = { model: model(), messages, temperature: 0.2, max_completion_tokens: maxTokens, stream: true };
+
+  // Acquire a working key from the pool
+  const keyState = await p.acquire(new Set());
+  const key = keyState.key;
+  const label = keyState.label;
+
+  const controller = new AbortController();
+  if (signal) signal.addEventListener('abort', () => controller.abort());
+
+  try {
+    let res = await fetch(URL_, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+      body: JSON.stringify({ ...base, reasoning_effort: 'low' }),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      if (res.status === 400) {
+        res = await fetch(URL_, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+          body: JSON.stringify(base),
+          signal: controller.signal,
+        });
+      }
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        const e = new Error(`Groq ${res.status}: ${text}`);
+        e.status = res.status;
+        throw e;
+      }
+    }
+
+    if (p.usage) await p.usage.add(p.usageId(label), monthOf(Date.now()), 1).catch(() => {});
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') return;
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta?.content;
+              if (delta) yield delta;
+            } catch { /* ignore parse errors */ }
+          }
+        }
+      }
+    } finally {
+      reader.cancel();
+    }
+  } catch (err) {
+    const kind = classifyError(err);
+    if (kind !== 'other') {
+      p.report(label, kind);
+      if (p.usage && kind !== 'invalid') await p.usage.add(p.usageId(label), monthOf(Date.now()), 1).catch(() => {});
+    }
+    throw err;
+  }
+}
+
+module.exports = { chat, chatStream, configured, model };

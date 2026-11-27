@@ -11,6 +11,7 @@ require('dotenv').config();
 const fs = require('node:fs');
 const alertsDb = require('../src/db/alerts');
 const { alertFromPost } = require('../src/lib/alerts');
+const { startJob } = require('../src/lib/jobrun');
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(`--${n}`);
@@ -22,7 +23,7 @@ async function fetchWp(pages) {
   for (let page = 1; page <= pages; page++) {
     const url = `${WP}?search=${encodeURIComponent('Public Alert')}&per_page=50&page=${page}&_fields=id,date,link,title,excerpt,content`;
     const res = await fetch(url, { headers: { 'User-Agent': 'Kemist/0.1 (alerts import)' }, signal: AbortSignal.timeout(30000) });
-    if (res.status === 400) break;                                                   // past the last page
+    if (res.status === 400) break;
     if (!res.ok) throw new Error(`NAFDAC site answered ${res.status}. Its WordPress API may be switched off: use --file instead.`);
     const json = await res.json();
     if (!Array.isArray(json) || !json.length) break;
@@ -41,8 +42,16 @@ async function main() {
   console.log(`Posts read: ${posts.length}. Alerts recognised: ${rows.length}. With registration numbers: ${rows.filter((r) => r.nrns.length).length}.`);
   rows.slice(0, 5).forEach((r) => console.log(`  [${r.alert_type}] ${r.title.slice(0, 90)}${r.nrns.length ? `  NRN: ${r.nrns.join(', ')}` : ''}`));
   if (flag('dry')) return;
-  await alertsDb.upsertMany(rows);
-  console.log('Saved.');
+
+  const job = await startJob('import-alerts');
+  try {
+    await alertsDb.upsertMany(rows);
+    console.log('Saved.');
+    await job.finish('success', { records_seen: posts.length, records_saved: rows.length });
+  } catch (e) {
+    await job.finish('failed', { error_message: e.message });
+    throw e;
+  }
 }
 
 main().catch((e) => { console.error('Import failed:', e.message); process.exitCode = 1; });

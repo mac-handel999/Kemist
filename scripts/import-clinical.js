@@ -15,6 +15,7 @@ const fs = require('node:fs');
 const clinical = require('../src/db/clinical');
 const { canonicalIngredient } = require('../src/lib/ingredients');
 const { fetchLabelsFor, normalizeLabel, isSingleIngredientLabel, sleep } = require('../src/lib/openfda');
+const { startJob } = require('../src/lib/jobrun');
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(`--${n}`);
@@ -35,6 +36,7 @@ async function main() {
   let fixture = null;
   if (opt('file')) fixture = JSON.parse(fs.readFileSync(opt('file'), 'utf8'));
 
+  const job = await startJob('import-clinical');
   let saved = 0, missing = 0, failed = 0;
   for (const key of keys) {
     try {
@@ -43,7 +45,7 @@ async function main() {
         rows = fixture.filter((raw) => isSingleIngredientLabel(raw, key)).map((raw) => normalizeLabel(raw, key)).filter(Boolean).slice(0, per);
       } else {
         rows = await fetchLabelsFor(key, { per, apiKey });
-        await sleep(apiKey ? 300 : 700);                      // stay well inside openFDA's rate limit
+        await sleep(apiKey ? 300 : 700);
       }
       if (!rows.length) { missing++; console.log(`  - ${key}: no single-ingredient US label found`); continue; }
       if (dry) {
@@ -59,6 +61,14 @@ async function main() {
     }
   }
   console.log(`\nDone. ${dry ? 'Would save' : 'Saved'}: ${saved}. No label: ${missing}. Errors: ${failed}.`);
+
+  await job.finish(failed && !saved ? 'failed' : saved > 0 ? 'success' : 'partial', {
+    records_seen: keys.length,
+    records_saved: saved,
+    errors: failed,
+    details: { missing }
+  });
+
   if (failed && !saved) process.exitCode = 1;
 }
 

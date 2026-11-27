@@ -17,12 +17,13 @@ const external = require('../src/db/external');
 const { CITIES } = require('../src/lib/prefill');
 const serp = require('../src/lib/providers/serpapi');
 const { KeyPool, PoolExhaustedError, parseKeys } = require('../src/lib/keypool');
+const { startJob } = require('../src/lib/jobrun');
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(`--${n}`);
 const opt = (n, d = null) => { const i = args.indexOf(`--${n}`); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const PROVIDER = 'serpapi';           // usage is counted per key as 'serpapi:…last4'
+const PROVIDER = 'serpapi';
 
 async function main() {
   // Offline mode: parse saved API responses, no key, no budget.
@@ -52,14 +53,14 @@ async function main() {
     ...area, radius: Number(opt('radius', 0.06)), step: Number(opt('step', 0.03)), queries, pages: Number(opt('pages', 1)),
   });
 
-  const limit = Number(process.env.SERPAPI_MONTHLY_LIMIT || 240);        // per key
+  const limit = Number(process.env.SERPAPI_MONTHLY_LIMIT || 240);
   const keys = parseKeys(process.env.SERPAPI_API_KEYS, process.env.SERPAPI_API_KEY);
   const month = new Date().toISOString().slice(0, 7);
   const pool = new KeyPool({
     provider: PROVIDER, keys, monthlyLimit: limit,
     usage: { get: (p, m) => external.getUsage(p, m), add: (p, m, n) => external.addUsage(p, m, n) },
   });
-  const remaining = keys.length ? await pool.remaining() : limit;          // dry run without keys: assume one key
+  const remaining = keys.length ? await pool.remaining() : limit;
   const maxCalls = opt('max-calls') ? Number(opt('max-calls')) : Infinity;
   const allowed = serp.budgetAllowed({ limit: remaining, used: 0, maxCalls, planned: plan.length });
 
@@ -72,12 +73,13 @@ async function main() {
   if (!allowed) { console.error('No budget left for this month (or nothing planned). Nothing was called.'); process.exitCode = 1; return; }
   if (external.mode !== 'supabase') console.warn('Warning: Supabase is not configured, so results are kept in memory only and will be lost.');
 
-  if (!keys.length) { console.error('Set SERPAPI_API_KEY (or SERPAPI_API_KEYS=key1,key2) in .env.'); process.exitCode = 1; return; }
+  const job = await startJob('import-serpapi');
+  if (!keys.length) { await job.finish('failed', { error_message: 'No SerpAPI keys set' }); console.error('Set SERPAPI_API_KEY (or SERPAPI_API_KEYS=key1,key2) in .env.'); process.exitCode = 1; return; }
   let saved = 0, empty = 0, failed = 0;
   for (let i = 0; i < allowed; i++) {
     const c = plan[i];
     try {
-      const { rows } = await pool.run((key) => serp.search({ apiKey: key, ...c, gl: process.env.SERPAPI_GL || '' }));   // fails over to the next key by itself
+      const { rows } = await pool.run((key) => serp.search({ apiKey: key, ...c, gl: process.env.SERPAPI_GL || '' }));
       if (rows.length) { await external.upsertFacilities(rows); saved += rows.length; } else empty++;
       console.log(`  ${i + 1}/${allowed} "${c.q}" @ ${c.lat.toFixed(3)},${c.lng.toFixed(3)} -> ${rows.length} facilities`);
     } catch (e) {
@@ -88,6 +90,14 @@ async function main() {
     await sleep(1000);
   }
   console.log(`\nDone. Saved/updated: ${saved}. Empty calls: ${empty}. Failed: ${failed}. Calls left this month: ${await pool.remaining()}.`);
+
+  await job.finish(failed && !saved ? 'failed' : saved > 0 ? 'success' : 'partial', {
+    records_seen: plan.length,
+    records_saved: saved,
+    errors: failed + empty,
+    details: { callsLeft: await pool.remaining() }
+  });
+
   if (failed && !saved) process.exitCode = 1;
 }
 
