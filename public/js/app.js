@@ -1007,7 +1007,7 @@ h('p', null, 'This feature complies with the Nigeria Data Protection Act. Locati
     }
 
     // Render a single section accordion
-    function renderSection(label, key, title, icon) {
+    function renderSection(label, key, title, sectionIcon) {
       const content = label.sections?.[key];
       if (!content || !content.trim()) return null;
 
@@ -1015,7 +1015,7 @@ h('p', null, 'This feature complies with the Nigeria Data Protection Act. Locati
       const sectionId = `section-${key}`;
 
       return h('details', { class: 'clinical-section', id: sectionId, open: key === 'indications' },
-        h('summary', null, h('span', { class: 'section-icon', 'aria-hidden': 'true' }, icon), title),
+        h('summary', null, h('span', { class: 'section-icon', 'aria-hidden': 'true' }, sectionIcon), title),
         h('div', { class: 'section-content' },
           h('div', { class: 'section-text', style: 'white-space:pre-line;overflow-wrap:anywhere' }, html),
           truncated && h('button', { class: 'read-more', type: 'button', onclick: (e) => toggleReadMore(e, content) }, 'Read more'),
