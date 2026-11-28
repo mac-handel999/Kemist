@@ -639,7 +639,7 @@ const ICON = {
         ),
 h('p', null, 'This feature complies with the Nigeria Data Protection Act. Location data is personal data; we keep it on your device, process it only with your explicit consent, and do not share it.')),
       install,
-      h('a', { class: 'btn', href: '#/report' }, 'Report a problem')));
+      h('a', { class: 'btn', href: '#/report' }, 'Report a problem'));
   }
 
   // ---------- Safety Alerts ----------
