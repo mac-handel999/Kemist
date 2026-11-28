@@ -637,7 +637,7 @@ const ICON = {
           h('li', null, 'You can turn it off with one tap in the Nearby page header.'),
           h('li', null, 'No background tracking, no wake locks, no persistent identifiers.'),
         ),
-        h('p', null, 'This feature complies with the Nigeria Data Protection Act. Location data is personal data; we keep it on your device, process it only with your explicit consent, and do not share it.')),
+h('p', null, 'This feature complies with the Nigeria Data Protection Act. Location data is personal data; we keep it on your device, process it only with your explicit consent, and do not share it.')),
       install,
       h('a', { class: 'btn', href: '#/report' }, 'Report a problem')));
   }
